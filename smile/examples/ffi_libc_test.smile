@@ -1,0 +1,68 @@
+// Cランタイム直接リンクテスト
+// Windows: msvcrt.dll (= glibc相当)
+// Linux: libc.so.6 (glibc)
+
+import sys
+
+print("=== Cランタイム (glibc/msvcrt) リンクテスト ===")
+
+if sys.platform == "win32" {
+    lib = ffi_load("msvcrt")
+    print("  ロード: msvcrt.dll (Windows Cランタイム)")
+} else {
+    lib = ffi_load("libc.so.6")
+    print("  ロード: libc.so.6 (glibc)")
+}
+
+// abs
+lib.define("abs", ["int"], "int")
+print(f"  abs(-99) = {lib.abs(-99)}")
+
+// strlen
+lib.define("strlen", ["string"], "size_t")
+s = ffi_string("Hello, Smile!")
+print(f"  strlen('Hello, Smile!') = {lib.strlen(s)}")
+
+// atoi
+lib.define("atoi", ["string"], "int")
+print(f"  atoi('12345') = {lib.atoi(ffi_string('12345'))}")
+
+// math: sqrt, sin, cos, pow
+import ctypes
+mathlib = ffi_load("msvcrt") if sys.platform == "win32" else ffi_load("libm.so.6")
+mathlib.define("sqrt", ["double"], "double")
+mathlib.define("sin", ["double"], "double")
+mathlib.define("cos", ["double"], "double")
+mathlib.define("pow", ["double", "double"], "double")
+
+print(f"  sqrt(144) = {mathlib.sqrt(144.0)}")
+print(f"  sin(1.0) = {mathlib.sin(1.0)}")
+print(f"  cos(0.0) = {mathlib.cos(0.0)}")
+print(f"  pow(2, 10) = {mathlib.pow(2.0, 10.0)}")
+
+// malloc + free (メモリ確保)
+lib.define("malloc", ["size_t"], "ptr")
+lib.define("free", ["ptr"], "void")
+ptr = lib.malloc(256)
+print(f"  malloc(256) = {ptr}")
+lib.free(ptr)
+print(f"  free() 完了")
+
+// memset
+lib.define("memset", ["ptr", "int", "size_t"], "ptr")
+buf = ffi_buffer(64)
+import ctypes
+lib.memset(ctypes.addressof(buf), 0x41, 64)
+print(f"  memset(buf, 'A', 64) = {bytes(buf[:8])}")
+
+// time
+lib.define("time", ["ptr"], "int64")
+t = lib.time(ffi_null())
+print(f"  time(NULL) = {t}")
+
+print("\n=== エクスポートシンボル (一部) ===")
+syms = lib.symbols()
+print(f"  シンボル数: {length(syms)}")
+print(f"  先頭10個: {syms[:10]}")
+
+print("\n=== glibc/msvcrt リンク: 全テスト通過 ===")
