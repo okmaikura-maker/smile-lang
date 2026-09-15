@@ -615,6 +615,185 @@ def typeof(x):
 from smile.lowlevel import *
 
 # ============================================================
+# GPU / iGPU / CPU 飽和ベンチマーク (標準関数)
+# ============================================================
+
+def bench_gpu(seconds=10.0):
+    """NVIDIA GPU を8本独立FMAで完全飽和。GFLOPS を返す"""
+    from smile.gpu import gpu_devices, OpenCLGPU
+    devs = [d for d in gpu_devices() if d["backend"] == "opencl" and "NVIDIA" in d.get("vendor", "").upper()]
+    if not devs:
+        print("NVIDIA GPUが見つかりません")
+        return None
+    return _run_alu_saturate(OpenCLGPU(devs[0]["index"]), devs[0]["name"], seconds)
+
+def bench_igpu(seconds=10.0):
+    """Intel/AMD iGPU を8本独立FMAで完全飽和。GFLOPS を返す"""
+    from smile.gpu import gpu_devices, OpenCLGPU
+    devs = [d for d in gpu_devices() if d["backend"] == "opencl"
+            and ("INTEL" in d.get("vendor", "").upper() or "AMD" in d.get("vendor", "").upper())
+            and "NVIDIA" not in d.get("vendor", "").upper()]
+    if not devs:
+        print("iGPUが見つかりません")
+        return None
+    return _run_alu_saturate(OpenCLGPU(devs[0]["index"]), devs[0]["name"], seconds)
+
+def bench_cpu(seconds=10.0):
+    """CPU全コアをネイティブ演算で飽和。GFLOPS を返す"""
+    import os, time, threading
+    cores = os.cpu_count() or 4
+
+    try:
+        import numpy as np
+        has_numpy = True
+    except ImportError:
+        has_numpy = False
+
+    results = [0.0] * cores
+
+    if has_numpy:
+        print(f"CPU飽和中... ({cores}コア, {seconds}秒, numpy SIMD)")
+        def _work(idx, dur):
+            size = 8 * 1024 * 1024
+            a = np.full(size, 1.0001, dtype=np.float32)
+            b = np.full(size, 0.9999, dtype=np.float32)
+            c = np.full(size, 0.0001, dtype=np.float32)
+            count = 0
+            t0 = time.perf_counter()
+            while time.perf_counter() - t0 < dur:
+                np.multiply(a, b, out=a)
+                np.add(a, c, out=a)
+                np.multiply(a, b, out=a)
+                np.add(a, c, out=a)
+                np.multiply(a, b, out=a)
+                np.add(a, c, out=a)
+                np.multiply(a, b, out=a)
+                np.add(a, c, out=a)
+                count += size * 8
+            results[idx] = count
+        method = "numpy SIMD"
+    else:
+        print(f"CPU飽和中... ({cores}コア, {seconds}秒, OpenCL CPU)")
+        try:
+            from smile.gpu import gpu_devices, OpenCLGPU
+            cpu_devs = [d for d in gpu_devices() if "cpu" in d.get("type", "").lower()]
+            if cpu_devs:
+                def _work(idx, dur):
+                    gpu = OpenCLGPU(cpu_devs[0]["index"])
+                    ksrc = """
+__kernel void fma8(__global float* out, const int iters) {
+    int i = get_global_id(0);
+    float a0=i*1e-6f, a1=a0+.1f, a2=a0+.2f, a3=a0+.3f;
+    float a4=a0+.4f, a5=a0+.5f, a6=a0+.6f, a7=a0+.7f;
+    for(int k=0;k<iters;k++){
+        a0=a0*.9f+.1f; a1=a1*.9f+.1f; a2=a2*.9f+.1f; a3=a3*.9f+.1f;
+        a4=a4*.9f+.1f; a5=a5*.9f+.1f; a6=a6*.9f+.1f; a7=a7*.9f+.1f;
+    }
+    out[i]=a0+a1+a2+a3+a4+a5+a6+a7;
+}"""
+                    gpu.build(ksrc)
+                    kern = gpu.kernel("fma8")
+                    gsize = 1024 * 1024
+                    iters = 2000
+                    buf = gpu.alloc(gsize * 4)
+                    count = 0
+                    t0 = time.perf_counter()
+                    while time.perf_counter() - t0 < dur:
+                        kern.launch(gsize, [buf, iters], sync=True)
+                        count += gsize * iters * 16
+                    results[idx] = count
+                method = "OpenCL CPU"
+            else:
+                raise RuntimeError("no CPU device")
+        except Exception:
+            def _work(idx, dur):
+                a, b = 1.0000001, 0.9999999
+                count = 0
+                batch = 2_000_000
+                t0 = time.perf_counter()
+                while time.perf_counter() - t0 < dur:
+                    x = a
+                    for _ in range(batch):
+                        x = x * b + a
+                    count += batch * 2
+                results[idx] = count
+            method = "Python loop"
+
+    threads = []
+    t0 = time.perf_counter()
+    for i in range(cores):
+        t = threading.Thread(target=_work, args=(i, seconds))
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+    dt = time.perf_counter() - t0
+
+    total_flops = sum(results)
+    gflops = total_flops / dt / 1e9
+    print(f"CPU: {gflops:.1f} GFLOPS ({cores}コア, {dt:.2f}秒, {method})")
+    return {"gflops": gflops, "cores": cores, "seconds": dt, "method": method}
+
+def bench_all(seconds=10.0):
+    """GPU + iGPU + CPU を全部飽和させて結果を返す"""
+    results = {}
+    print("============================================================")
+    print("  全デバイス飽和ベンチマーク")
+    print("============================================================")
+    r = bench_gpu(seconds)
+    if r:
+        results["gpu"] = r
+    r = bench_igpu(seconds)
+    if r:
+        results["igpu"] = r
+    r = bench_cpu(seconds)
+    if r:
+        results["cpu"] = r
+    print("============================================================")
+    print("  完了")
+    print("============================================================")
+    return results
+
+def _run_alu_saturate(gpu, name, seconds):
+    """OpenCL GPUで8本独立FMA飽和"""
+    import time
+    kernel_src = """
+__kernel void saturate(__global float* out, const int iters) {
+    int i = get_global_id(0);
+    float a0 = i * 1e-6f,       a1 = a0 + 0.1f;
+    float a2 = a0 + 0.2f,       a3 = a0 + 0.3f;
+    float a4 = a0 + 0.4f,       a5 = a0 + 0.5f;
+    float a6 = a0 + 0.6f,       a7 = a0 + 0.7f;
+    for (int k = 0; k < iters; k++) {
+        a0 = a0 * 0.9f + 0.1f;  a1 = a1 * 0.9f + 0.1f;
+        a2 = a2 * 0.9f + 0.1f;  a3 = a3 * 0.9f + 0.1f;
+        a4 = a4 * 0.9f + 0.1f;  a5 = a5 * 0.9f + 0.1f;
+        a6 = a6 * 0.9f + 0.1f;  a7 = a7 * 0.9f + 0.1f;
+    }
+    out[i] = a0+a1+a2+a3+a4+a5+a6+a7;
+}
+"""
+    gpu.build(kernel_src)
+    kern = gpu.kernel("saturate")
+    gsize = 1024 * 1024
+    iters = 5000
+    buf = gpu.alloc(gsize * 4)
+    launches = 0
+    print(f"{name} 飽和中... ({seconds}秒)")
+    t0 = time.perf_counter()
+    while time.perf_counter() - t0 < seconds:
+        kern.launch(gsize, [buf, iters], sync=False)
+        kern.launch(gsize, [buf, iters], sync=False)
+        kern.launch(gsize, [buf, iters], sync=False)
+        launches += 3
+        gpu.sync()
+    dt = time.perf_counter() - t0
+    flop = launches * gsize * iters * 16
+    gflops = flop / dt / 1e9
+    print(f"{name}: {gflops:.1f} GFLOPS ({launches} launches, {dt:.2f}秒)")
+    return {"name": name, "gflops": gflops, "launches": launches, "seconds": dt}
+
+# ============================================================
 # 全エクスポート
 # ============================================================
 def _get_all_exports():

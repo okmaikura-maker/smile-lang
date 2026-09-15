@@ -1,0 +1,20 @@
+// 標準関数ベンチマークテスト
+// import不要で使える
+
+// 個別テスト
+print("=== bench_gpu ===")
+r = bench_gpu(5.0)
+print(r)
+
+print("\n=== bench_igpu ===")
+r = bench_igpu(5.0)
+print(r)
+
+print("\n=== bench_cpu ===")
+r = bench_cpu(5.0)
+print(r)
+
+// 全デバイス一括
+print("\n\n=== bench_all ===")
+all_results = bench_all(5.0)
+print(all_results)
