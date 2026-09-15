@@ -1,0 +1,62 @@
+{
+  "scopeName": "source.smile",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#fstring" },
+    { "include": "#number" },
+    { "include": "#keyword" },
+    { "include": "#constant" },
+    { "include": "#function-def" },
+    { "include": "#struct-def" },
+    { "include": "#operator" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "//.*$",
+      "name": "comment.line.double-slash.smile"
+    },
+    "string": {
+      "patterns": [
+        { "match": "\"\"\"[\\s\\S]*?\"\"\"", "name": "string.quoted.triple.smile" },
+        { "match": "'''[\\s\\S]*?'''", "name": "string.quoted.triple.smile" },
+        { "match": "\"[^\"]*\"", "name": "string.quoted.double.smile" },
+        { "match": "'[^']*'", "name": "string.quoted.single.smile" }
+      ]
+    },
+    "fstring": {
+      "match": "f\"[^\"]*\"",
+      "name": "string.interpolated.smile"
+    },
+    "number": {
+      "match": "\\b(0x[0-9a-fA-F]+|0b[01]+|0o[0-7]+|\\d+\\.\\d+|\\d+)\\b",
+      "name": "constant.numeric.smile"
+    },
+    "keyword": {
+      "match": "\\b(if|else|while|for|in|function|return|break|continue|import|from|as|struct|extends|try|catch|finally|throw|match|case|async|await|and|or|not)\\b",
+      "name": "keyword.control.smile"
+    },
+    "constant": {
+      "match": "\\b(true|false|none)\\b",
+      "name": "constant.language.smile"
+    },
+    "function-def": {
+      "match": "\\b(function|async\\s+function)\\s+([a-zA-Z_\\u3040-\\u9FFF][a-zA-Z0-9_\\u3040-\\u9FFF]*)",
+      "captures": {
+        "1": { "name": "keyword.control.smile" },
+        "2": { "name": "entity.name.function.smile" }
+      }
+    },
+    "struct-def": {
+      "match": "\\b(struct)\\s+([a-zA-Z_\\u3040-\\u9FFF][a-zA-Z0-9_\\u3040-\\u9FFF]*)",
+      "captures": {
+        "1": { "name": "keyword.control.smile" },
+        "2": { "name": "entity.name.type.smile" }
+      }
+    },
+    "operator": {
+      "match": "(\\|>|\\*\\*|//|==|!=|<=|>=|\\+=|-=|\\*=|/=|->)",
+      "name": "keyword.operator.smile"
+    }
+  }
+}

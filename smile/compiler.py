@@ -8,7 +8,7 @@ from pathlib import Path
 from lark import Lark, Tree, Token
 
 GRAMMAR_PATH = Path(__file__).parent / "grammar.lark"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -367,16 +367,67 @@ class CodeGen:
         body = self.gen(node.children[3])
         return f"{self.ind()}for {var1}, {var2} in {iter_expr}:\n{body}"
 
+    # --- Typed params ---
+    def gen_typed_params(self, node):
+        return ", ".join(self.gen(c) for c in node.children)
+
+    def gen_typed_param_only(self, node):
+        return str(node.children[0])
+
+    def gen_typed_default_param(self, node):
+        return f"{node.children[0]}={self.gen(node.children[2])}"
+
+    def gen_return_type(self, node):
+        return ""
+
     # --- Function ---
     def gen_func_def(self, node):
         name = str(node.children[0])
-        if len(node.children) == 3:
-            params = self.gen(node.children[1])
-            body = self.gen(node.children[2])
+        children = [c for c in node.children if not (isinstance(c, Tree) and c.data == "return_type")]
+        if len(children) == 3:
+            params = self.gen(children[1])
+            body = self.gen(children[2])
         else:
             params = ""
-            body = self.gen(node.children[1])
+            body = self.gen(children[1])
         return f"{self.ind()}def {name}({params}):\n{body}"
+
+    def gen_async_func_def(self, node):
+        name = str(node.children[0])
+        children = [c for c in node.children if not (isinstance(c, Tree) and c.data == "return_type")]
+        if len(children) == 3:
+            params = self.gen(children[1])
+            body = self.gen(children[2])
+        else:
+            params = ""
+            body = self.gen(children[1])
+        return f"{self.ind()}async def {name}({params}):\n{body}"
+
+    # --- Await ---
+    def gen_await_expr(self, node):
+        return f"(await {self.gen(node.children[0])})"
+
+    # --- Match ---
+    def gen_match_stmt(self, node):
+        subject = self.gen(node.children[0])
+        cases = [c for c in node.children[1:] if isinstance(c, Tree) and c.data == "match_case"]
+        lines = []
+        for i, case in enumerate(cases):
+            pattern = case.children[0]
+            body = self.gen(case.children[1])
+            if isinstance(pattern, Tree) and pattern.data == "match_wildcard":
+                if i == 0:
+                    lines.append(f"{self.ind()}if True:\n{body}")
+                else:
+                    lines.append(f"{self.ind()}else:\n{body}")
+            else:
+                val = self.gen(pattern)
+                kw = "if" if i == 0 else "elif"
+                lines.append(f"{self.ind()}{kw} {subject} == {val}:\n{body}")
+        return "\n".join(lines)
+
+    def gen_match_value(self, node):
+        return self.gen(node.children[0])
 
     # --- Struct ---
     def gen_struct_def(self, node):
@@ -699,13 +750,35 @@ LOGO = """
        \\_/
       SMILE"""
 
+def _setup_repl_completion(repl_globals):
+    try:
+        import readline
+        keywords = [
+            "if", "else", "while", "for", "in", "function", "return",
+            "break", "continue", "import", "from", "as", "struct",
+            "extends", "try", "catch", "finally", "throw", "match",
+            "case", "async", "await", "true", "false", "none",
+            "and", "or", "not", "print", "input_smile",
+        ]
+        def completer(text, state):
+            options = [k for k in keywords if k.startswith(text)]
+            options += [k for k in repl_globals if k.startswith(text) and not k.startswith("_")]
+            if state < len(options):
+                return options[state]
+            return None
+        readline.set_completer(completer)
+        readline.parse_and_bind("tab: complete")
+    except ImportError:
+        pass
+
 def cmd_repl():
     print(LOGO)
     print(f"  Smile Language v{VERSION} - Interpreter")
-    print("  exit で終了")
+    print("  exit で終了 / Tabで補完")
     print("-" * 40)
     repl_globals = dict(_get_prelude_globals())
     repl_globals["__name__"] = "__repl__"
+    _setup_repl_completion(repl_globals)
     while True:
         try:
             line = input("smile> ")
@@ -752,6 +825,45 @@ def cmd_install(args):
             print("失敗 (PyPIに見つかりません)")
 
 
+def cmd_fmt(args):
+    import re
+    if not args:
+        print("使い方: smile fmt <ファイル.smile> [--check]")
+        return
+    check_only = "--check" in args
+    files = [a for a in args if not a.startswith("--")]
+    dirty = 0
+    for filepath in files:
+        if not os.path.exists(filepath):
+            print(f"ファイルが見つかりません: {filepath}")
+            continue
+        source = Path(filepath).read_text(encoding="utf-8")
+        lines = source.split("\n")
+        formatted = []
+        for line in lines:
+            stripped = line.rstrip()
+            # normalize indent to 4 spaces
+            leading = len(line) - len(line.lstrip())
+            if line.strip():
+                formatted.append(line[:leading] + line.strip())
+            else:
+                formatted.append("")
+        result = "\n".join(formatted)
+        if not result.endswith("\n"):
+            result += "\n"
+        if result != source:
+            dirty += 1
+            if check_only:
+                print(f"  要修正  {filepath}")
+            else:
+                Path(filepath).write_text(result, encoding="utf-8")
+                print(f"  整形済  {filepath}")
+        else:
+            print(f"  OK      {filepath}")
+    if check_only and dirty > 0:
+        sys.exit(1)
+
+
 def cmd_help():
     print(LOGO)
     print(f"  Smile Language v{VERSION}")
@@ -761,6 +873,8 @@ def cmd_help():
     print("  smile run <ファイル.smile>    ファイルを実行 (引数渡し可)")
     print("  smile init [名前]             新しいプロジェクトを作成")
     print("  smile test [ディレクトリ]     テストを実行")
+    print("  smile fmt <ファイル.smile>    コード整形")
+    print("  smile debug <ファイル.smile>  ステップ実行デバッガー")
     print("  smile install <パッケージ>    PyPIから一時取得")
     print("  smile repl                    対話モード")
     print("  smile version                 バージョン表示")
@@ -782,6 +896,14 @@ def main():
         cmd_init(sys.argv[2:])
     elif cmd == "test":
         cmd_test(sys.argv[2:])
+    elif cmd == "fmt":
+        cmd_fmt(sys.argv[2:])
+    elif cmd == "debug":
+        if len(sys.argv) < 3:
+            print("使い方: smile debug <ファイル.smile>")
+            sys.exit(1)
+        from smile.debugger import run_debug
+        run_debug(sys.argv[2])
     elif cmd == "install":
         cmd_install(sys.argv[2:])
     elif cmd == "repl":

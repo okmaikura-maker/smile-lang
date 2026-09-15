@@ -18,6 +18,11 @@
 - **pip不要のパッケージ取得** - importするだけでPyPIから自動ダウンロード、終わったら自動削除
 - **Pythonの全ライブラリが使える** - pipで入れたものもそのまま使える
 - **豊富な標準ライブラリ** - 80以上の関数がimport不要で使える
+- **match文** - パターンマッチングで分岐をすっきり
+- **async/await** - 非同期処理もシンプルに
+- **Webフレームワーク内蔵** - Flask風のルーティングですぐにWebアプリ
+- **デバッガー** - ステップ実行で動きを確認
+- **VS Code対応** - シンタックスハイライト＋LSP
 - **低レイヤーアクセス** - BIOS/SMBIOS/ACPI読み取り、メモリ操作、アセンブラも安全に
 
 ## インストール
@@ -29,7 +34,7 @@ pip install lark
 リポジトリをクローンして使う:
 
 ```bash
-git clone https://github.com/yourname/smile-lang.git
+git clone https://github.com/okmaikura-maker/smile-lang.git
 cd smile-lang
 python -m smile
 ```
@@ -80,6 +85,11 @@ print(greet("花子", "おはよう"))
 function sum_all(*nums) {
     return sum_val(nums)
 }
+
+// 型アノテーション（ドキュメント用）
+function add(a: int, b: int) -> int {
+    return a + b
+}
 ```
 
 ### 条件分岐
@@ -98,6 +108,23 @@ if score >= 90 {
 status = "大人" if age >= 18 else "子供"
 ```
 
+### match文
+
+```
+x = 3
+match x {
+    case 1 {
+        print("1です")
+    }
+    case 2 {
+        print("2です")
+    }
+    case _ {
+        print("その他")
+    }
+}
+```
+
 ### ループ
 
 ```
@@ -112,6 +139,23 @@ for i, name in enumerate_list(names) {
 while condition {
     // ...
 }
+```
+
+### async/await
+
+```
+import asyncio
+
+async function fetch_data(url: string) -> string {
+    await asyncio.sleep(1)
+    return "データ取得完了"
+}
+
+async function main() {
+    result = await fetch_data("https://example.com")
+    print(result)
+}
+asyncio.run(main())
 ```
 
 ### try/catch
@@ -164,6 +208,26 @@ import art
 print(art.text2art("Smile"))
 ```
 
+### Webフレームワーク
+
+```
+from smile.web import create_app
+
+app = create_app("MyApp")
+
+@app.get("/")
+function index(req, res) {
+    res.html("<h1>こんにちは!</h1>")
+}
+
+@app.get("/api/data")
+function api_data(req, res) {
+    res.json({"message": "Hello from Smile!"})
+}
+
+app.run(port=8080)
+```
+
 ## CLIコマンド
 
 ```
@@ -171,8 +235,10 @@ smile <ファイル.smile>        ファイルを実行
 smile run <ファイル.smile>    ファイルを実行 (引数渡し可)
 smile init [名前]             新しいプロジェクトを作成
 smile test [ディレクトリ]     テストを実行
+smile fmt <ファイル.smile>    コード整形
+smile debug <ファイル.smile>  ステップ実行デバッガー
 smile install <パッケージ>    PyPIから一時取得
-smile repl                    対話モード
+smile repl                    対話モード (Tab補完対応)
 smile version                 バージョン表示
 smile help                    ヘルプ
 ```
@@ -207,6 +273,8 @@ Smileのエラーメッセージは日本語で詳細に教えてくれる:
 ------------------------------------------------------------
 ```
 
+対応エラー: NameError, TypeError, IndexError, KeyError, ZeroDivisionError, AttributeError, ValueError, FileNotFoundError, RecursionError, OverflowError, ImportError, PermissionError, UnicodeDecodeError, ConnectionError, TimeoutError, MemoryError, AssertionError
+
 ## 標準ライブラリ (一部)
 
 | カテゴリ | 関数 |
@@ -220,6 +288,13 @@ Smileのエラーメッセージは日本語で詳細に教えてくれる:
 | HTTP | `http_get`, `http_post` |
 | 時間 | `now`, `now_string`, `sleep`, `measure` |
 | デバッグ | `debug`, `assert_true`, `assert_equal`, `time_it` |
+
+## 開発ツール
+
+- **VS Code拡張** - `vscode-smile/` にシンタックスハイライト
+- **LSPサーバー** - `python -m smile.lsp` で補完・ホバー・診断
+- **デバッガー** - `smile debug file.smile` でステップ実行
+- **フォーマッター** - `smile fmt file.smile` でコード整形
 
 ## 低レイヤー
 

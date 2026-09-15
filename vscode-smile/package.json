@@ -1,0 +1,21 @@
+{
+  "name": "smile-lang",
+  "displayName": "Smile Language",
+  "description": "Smile言語のシンタックスハイライト",
+  "version": "0.3.0",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "smile",
+      "aliases": ["Smile", "smile"],
+      "extensions": [".smile"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "smile",
+      "scopeName": "source.smile",
+      "path": "./syntaxes/smile.tmLanguage.json"
+    }]
+  }
+}

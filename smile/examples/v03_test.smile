@@ -1,0 +1,127 @@
+// Smile v0.3 テスト
+
+// === match文 ===
+print("=== match文テスト ===")
+x = 3
+match x {
+    case 1 {
+        print("1です")
+    }
+    case 2 {
+        print("2です")
+    }
+    case 3 {
+        print("3です")
+    }
+    case _ {
+        print("その他")
+    }
+}
+
+// match with string
+color = "赤"
+match color {
+    case "青" {
+        print("青い")
+    }
+    case "赤" {
+        print("赤い")
+    }
+    case _ {
+        print("知らない色")
+    }
+}
+
+// === 型アノテーション（無視される、ドキュメント用） ===
+print("=== 型アノテーション ===")
+function add(a: int, b: int) -> int {
+    return a + b
+}
+print(add(10, 20))
+
+function greet(name: string, times: int = 1) {
+    for i in range(times) {
+        print(f"こんにちは、{name}さん!")
+    }
+}
+greet("太郎", 2)
+
+// === async/await ===
+print("=== async/await ===")
+import asyncio
+
+async function fetch_data(name: string) -> string {
+    await asyncio.sleep(0.01)
+    return f"{name}のデータ"
+}
+
+async function main_async() {
+    result = await fetch_data("テスト")
+    print(result)
+}
+asyncio.run(main_async())
+
+// === 既存機能テスト ===
+print("=== パイプ ===")
+result = [5, 3, 1, 4, 2] |> sorted |> list
+print(result)
+
+print("=== リスト内包表記 ===")
+squares = [x ** 2 for x in range(5)]
+print(squares)
+
+print("=== 三項演算子 ===")
+val = 42
+msg = "大きい" if val > 10 else "小さい"
+print(msg)
+
+print("=== f-string ===")
+name = "Smile"
+ver = 3
+print(f"{name} v0.{ver}")
+
+print("=== try/catch ===")
+try {
+    x = 10 / 0
+} catch e {
+    print(f"エラー: {e}")
+}
+
+print("=== struct ===")
+struct Point {
+    x = 0
+    y = 0
+}
+p = Point(3, 4)
+print(p)
+
+struct Point3D extends Point {
+    z = 0
+}
+p3 = Point3D(1, 2, z=5)
+print(p3)
+
+print("=== スプレッド ===")
+nums = [1, 2, 3]
+function sum3(a, b, c) {
+    return a + b + c
+}
+print(sum3(*nums))
+
+print("=== デフォルト引数 / 可変長引数 ===")
+function hello(name, greeting="やあ") {
+    print(f"{greeting}、{name}!")
+}
+hello("花子")
+hello("太郎", "おはよう")
+
+function sum_all(*nums) {
+    total = 0
+    for n in nums {
+        total += n
+    }
+    return total
+}
+print(sum_all(1, 2, 3, 4, 5))
+
+print("=== 全テスト完了 ===")

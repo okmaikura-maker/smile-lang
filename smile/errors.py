@@ -643,6 +643,55 @@ def format_runtime_error(exc, source, filename="<smile>"):
         err = analyze_recursion_error(exc, source_lines, filename)
     elif etype == "OverflowError":
         err = analyze_overflow_error(exc, source_lines, filename)
+    elif etype == "ImportError" or etype == "ModuleNotFoundError":
+        err = SmileError()
+        err.title = "ImportError"
+        err.where_file = filename
+        msg = str(exc)
+        err.what = f"モジュールが見つかりません: {msg}"
+        err.how_to_fix.append("モジュール名のスペルを確認してください。")
+        err.how_to_fix.append("pip install <パッケージ名> でインストールするか、import文で自動取得されます。")
+    elif etype == "PermissionError":
+        err = SmileError()
+        err.title = "PermissionError"
+        err.where_file = filename
+        err.what = f"アクセス権限がありません: {exc}"
+        err.how_to_fix.append("ファイルやフォルダの権限を確認してください。")
+        err.how_to_fix.append("管理者権限で実行するか、別のパスを使ってみてください。")
+    elif etype == "UnicodeDecodeError":
+        err = SmileError()
+        err.title = "UnicodeDecodeError"
+        err.where_file = filename
+        err.what = f"文字コードの変換に失敗しました: {exc}"
+        err.how_to_fix.append("ファイルのエンコーディングを確認してください（UTF-8推奨）。")
+        err.how_to_fix.append("read_file()のencoding引数を指定してみてください。")
+    elif etype == "ConnectionError":
+        err = SmileError()
+        err.title = "ConnectionError"
+        err.where_file = filename
+        err.what = f"ネットワーク接続に失敗しました: {exc}"
+        err.how_to_fix.append("インターネット接続を確認してください。")
+        err.how_to_fix.append("URLが正しいか確認してください。")
+    elif etype == "TimeoutError":
+        err = SmileError()
+        err.title = "TimeoutError"
+        err.where_file = filename
+        err.what = f"処理がタイムアウトしました: {exc}"
+        err.how_to_fix.append("タイムアウト時間を長くするか、処理を分割してみてください。")
+    elif etype == "MemoryError":
+        err = SmileError()
+        err.title = "MemoryError"
+        err.where_file = filename
+        err.what = "メモリが不足しています"
+        err.how_to_fix.append("データのサイズを小さくしてみてください。")
+        err.how_to_fix.append("ジェネレータやイテレータを使って、一度に全てをメモリに載せないようにしてください。")
+    elif etype == "AssertionError" or etype == "AssertionError":
+        err = SmileError()
+        err.title = "AssertionError"
+        err.where_file = filename
+        err.what = f"アサーションが失敗しました: {exc}"
+        err.how_to_fix.append("assert_true / assert_equal の条件を見直してください。")
+        err.how_to_fix.append("テストの期待値が正しいか確認してください。")
     else:
         err = SmileError()
         err.title = etype
