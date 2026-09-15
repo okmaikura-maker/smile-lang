@@ -7,7 +7,12 @@ import json
 from pathlib import Path
 from lark import Lark, Tree, Token
 
-GRAMMAR_PATH = Path(__file__).parent / "grammar.lark"
+def _get_base_path():
+    if getattr(sys, '_MEIPASS', None):
+        return Path(sys._MEIPASS) / "smile"
+    return Path(__file__).parent
+
+GRAMMAR_PATH = _get_base_path() / "grammar.lark"
 VERSION = "0.3.0"
 
 if sys.stdout.encoding != "utf-8":
