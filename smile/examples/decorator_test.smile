@@ -1,0 +1,51 @@
+// デコレータテスト
+
+// シンプルなデコレータ
+function my_decorator(func) {
+    function wrapper(*args) {
+        print("実行前")
+        result = func(*args)
+        print("実行後")
+        return result
+    }
+    return wrapper
+}
+
+@my_decorator
+function say_hello(name) {
+    print(f"こんにちは、{name}!")
+}
+
+say_hello("太郎")
+
+// Webフレームワーク風
+print("---")
+
+items = []
+
+function route(path) {
+    function decorator(func) {
+        items.append({"path": path, "handler": func})
+        return func
+    }
+    return decorator
+}
+
+@route("/")
+function index(req) {
+    return "ホームページ"
+}
+
+@route("/about")
+function about(req) {
+    return "アバウト"
+}
+
+for item in items {
+    path = item["path"]
+    handler = item["handler"]
+    result = handler(none)
+    print(f"ルート: {path} -> {result}")
+}
+
+print("=== デコレータテスト完了 ===")

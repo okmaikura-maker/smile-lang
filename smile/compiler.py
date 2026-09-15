@@ -385,6 +385,16 @@ class CodeGen:
     def gen_return_type(self, node):
         return ""
 
+    # --- Decorator ---
+    def gen_decorated_def(self, node):
+        parts = []
+        for c in node.children:
+            if isinstance(c, Tree) and c.data == "decorator":
+                parts.append(f"{self.ind()}@{self.gen(c.children[0])}")
+            else:
+                parts.append(self.gen(c))
+        return "\n".join(parts)
+
     # --- Function ---
     def gen_func_def(self, node):
         name = str(node.children[0])

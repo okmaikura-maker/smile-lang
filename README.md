@@ -6,6 +6,8 @@
 
 # Smile言語
 
+> ⚠️ **アルファ版** - 開発中です。バグ報告・要望は [Issues](https://github.com/okmaikura-maker/smile-lang/issues) へ！
+
 **軽くて、安全で、エラーメッセージが優しいプログラミング言語**
 
 何でも作りたい。でも作る知識がない。そんな人のための言語。
@@ -20,12 +22,21 @@
 - **豊富な標準ライブラリ** - 80以上の関数がimport不要で使える
 - **match文** - パターンマッチングで分岐をすっきり
 - **async/await** - 非同期処理もシンプルに
+- **デコレータ** - `@`構文でFlask風ルーティングも自然に
 - **Webフレームワーク内蔵** - Flask風のルーティングですぐにWebアプリ
 - **デバッガー** - ステップ実行で動きを確認
 - **VS Code対応** - シンタックスハイライト＋LSP
 - **低レイヤーアクセス** - BIOS/SMBIOS/ACPI読み取り、メモリ操作、アセンブラも安全に
 
 ## インストール
+
+### Windows (推奨: Python不要)
+
+[Releases](https://github.com/okmaikura-maker/smile-lang/releases) から:
+- **MSIインストーラー** (`smile-x.x.x-win64.msi`) - ダブルクリック → PATHに自動追加
+- **exe単体** (`smile.exe`) - ダウンロードしてそのまま使える
+
+### ソースから (Python 3.10+)
 
 ```bash
 pip install lark
@@ -156,6 +167,30 @@ async function main() {
     print(result)
 }
 asyncio.run(main())
+```
+
+### デコレータ
+
+```
+function log(func) {
+    function wrapper(*args) {
+        print("実行前")
+        result = func(*args)
+        print("実行後")
+        return result
+    }
+    return wrapper
+}
+
+@log
+function hello(name) {
+    print(f"こんにちは、{name}!")
+}
+
+hello("太郎")
+// → 実行前
+// → こんにちは、太郎!
+// → 実行後
 ```
 
 ### try/catch
@@ -315,6 +350,10 @@ code.mov_al(0x41)
 code.int_(0x10)
 code.hlt()
 ```
+
+## バグ報告・要望
+
+[GitHub Issues](https://github.com/okmaikura-maker/smile-lang/issues) へお願いします。
 
 ## ライセンス
 

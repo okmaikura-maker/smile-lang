@@ -9,6 +9,7 @@ start: (_NL* statement)* _NL*
           | for_stmt
           | func_def
           | async_func_def
+          | decorated_def
           | return_stmt
           | break_stmt
           | continue_stmt
@@ -43,6 +44,10 @@ while_stmt: "while" expr block
 // For
 for_stmt: "for" NAME "in" expr block
         | "for" NAME "," NAME "in" expr block   -> for_pair_stmt
+
+// Decorator
+decorated_def: decorator+ (func_def | async_func_def)
+decorator: "@" expr _NL+
 
 // Function definition
 func_def: "function" NAME "(" typed_params? ")" return_type? block
