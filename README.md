@@ -1,7 +1,7 @@
 ```
   0 0
   \_/
-  SMILE
+ SMILE
 ```
 
 # Smile言語
