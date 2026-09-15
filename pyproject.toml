@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smile-lang"
-version = "0.3.0"
+version = "0.4.0"
 description = "Smile Language - 軽くて安全で優しいプログラミング言語"
 requires-python = ">=3.10"
 license = {text = "MIT"}

@@ -13,7 +13,7 @@ def _get_base_path():
     return Path(__file__).parent
 
 GRAMMAR_PATH = _get_base_path() / "grammar.lark"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
