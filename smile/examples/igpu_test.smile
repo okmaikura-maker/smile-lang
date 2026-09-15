@@ -1,0 +1,42 @@
+// iGPU (Intel HD Graphics) テスト
+from smile.gpu import gpu_devices
+from smile.gpu import OpenCLGPU
+from smile.gpu import gpu_bench
+from smile.gpu import gpu_map
+from smile.gpu import gpu_sum
+
+print("=== iGPU テスト ===")
+devices = gpu_devices()
+igpu_index = none
+for d in devices {
+    if d["backend"] == "opencl" and "Intel" in d["vendor"] {
+        igpu_index = d["index"]
+        print(f"  iGPU: {d['name']} ({d['compute_units']} CU, {d['memory_mb']} MB)")
+    }
+}
+
+if igpu_index == none {
+    print("  Intel iGPU が見つかりません")
+} else {
+    igpu = OpenCLGPU(igpu_index)
+    print(f"  選択: {igpu}")
+
+    // ベンチマーク
+    print("\n  ベンチマーク中...")
+    result = gpu_bench(igpu, size=128 * 1024, iters=500)
+    print(f"  {result['gflops']:.1f} GFLOPS ({result['seconds']:.4f}秒)")
+
+    // gpu_map
+    print("\n  gpu_map テスト...")
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+    result = gpu_map("x * 2.0f + 1.0f", data, igpu)
+    print(f"  x*2+1: {result}")
+
+    // gpu_sum
+    print("\n  gpu_sum テスト...")
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    total = gpu_sum(data, igpu)
+    print(f"  合計: {total}")
+}
+
+print("\n=== iGPU テスト完了 ===")

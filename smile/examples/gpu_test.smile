@@ -1,0 +1,50 @@
+// GPU テスト
+from smile.gpu import gpu_devices
+from smile.gpu import gpu_auto
+from smile.gpu import gpu_bench
+from smile.gpu import gpu_map
+from smile.gpu import gpu_sum
+
+// GPU 一覧
+print("=== GPU デバイス一覧 ===")
+devices = gpu_devices()
+for d in devices {
+    print(f"  {d}")
+}
+
+if length(devices) == 0 {
+    print("GPUが見つかりません")
+} else {
+    // 自動選択
+    print("\n=== GPU 自動選択 ===")
+    gpu = gpu_auto()
+    print(f"  選択: {gpu}")
+
+    // ベンチマーク
+    print("\n=== ベンチマーク ===")
+    result = gpu_bench(gpu, size=256 * 1024, iters=500)
+    print(f"  {result}")
+
+    // gpu_map テスト (OpenCL のみ)
+    try {
+        print("\n=== gpu_map テスト ===")
+        data = [1.0, 2.0, 3.0, 4.0, 5.0]
+        result = gpu_map("x * x", data)
+        print(f"  入力: {data}")
+        print(f"  x*x:  {result}")
+    } catch e {
+        print(f"  gpu_map: {e}")
+    }
+
+    // gpu_sum テスト
+    try {
+        print("\n=== gpu_sum テスト ===")
+        data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+        total = gpu_sum(data)
+        print(f"  合計: {total}")
+    } catch e {
+        print(f"  gpu_sum: {e}")
+    }
+}
+
+print("\n=== GPU テスト完了 ===")
