@@ -1,0 +1,190 @@
+// Smile Language Grammar v0.2
+
+start: (_NL* statement)* _NL*
+
+?statement: assignment
+          | expr_stmt
+          | if_stmt
+          | while_stmt
+          | for_stmt
+          | func_def
+          | return_stmt
+          | break_stmt
+          | continue_stmt
+          | import_stmt
+          | struct_def
+          | try_stmt
+          | throw_stmt
+          | multi_assign
+
+// Assignments
+assignment: NAME "=" expr                    -> assign
+          | expr "." NAME "=" expr           -> attr_assign
+          | expr "[" expr "]" "=" expr       -> index_assign
+          | NAME "+=" expr                   -> aug_add
+          | NAME "-=" expr                   -> aug_sub
+          | NAME "*=" expr                   -> aug_mul
+          | NAME "/=" expr                   -> aug_div
+
+// Multiple assignment: a, b = 1, 2
+multi_assign: NAME ("," NAME)+ "=" expr ("," expr)+
+
+// Expression statement
+expr_stmt: expr
+
+// If
+if_stmt: "if" expr block ("else" "if" expr block)* ("else" block)?
+
+// While
+while_stmt: "while" expr block
+
+// For
+for_stmt: "for" NAME "in" expr block
+        | "for" NAME "," NAME "in" expr block   -> for_pair_stmt
+
+// Function definition with optional default args
+func_def: "function" NAME "(" func_params? ")" block
+
+func_params: func_param ("," func_param)*
+func_param: NAME "=" expr                       -> default_param
+          | "*" NAME                             -> rest_param
+          | NAME                                 -> normal_param
+
+// Return / Break / Continue
+return_stmt: "return" expr?
+break_stmt: "break"
+continue_stmt: "continue"
+
+// Try / Catch / Finally
+try_stmt: "try" block catch_clause finally_clause?
+        | "try" block finally_clause
+catch_clause: "catch" NAME? block
+finally_clause: "finally" block
+
+// Throw
+throw_stmt: "throw" expr
+
+// Import
+import_stmt: "import" NAME ("." NAME)*                                -> import_simple
+           | "import" NAME ("." NAME)* "as" NAME                      -> import_as
+           | "from" NAME ("." NAME)* "import" import_names             -> import_from
+           | "from" NAME ("." NAME)* "import" "*"                      -> import_from_star
+import_names: NAME ("," NAME)*
+
+// Struct (with optional inheritance)
+struct_def: "struct" NAME "extends" NAME "{" _NL* struct_fields _NL* "}" -> struct_inherit
+          | "struct" NAME "{" _NL* struct_fields? _NL* "}"
+struct_fields: struct_field (_NL+ struct_field)*
+struct_field: NAME "=" expr                      -> field_default
+            | NAME                               -> field_plain
+
+// Block
+block: "{" (_NL* statement)* _NL* "}"
+
+// Expressions
+?expr: ternary_expr
+
+?ternary_expr: or_expr
+             | or_expr "if" or_expr "else" ternary_expr  -> ternary
+
+?or_expr: and_expr
+        | or_expr "or" and_expr              -> or_op
+
+?and_expr: not_expr
+         | and_expr "and" not_expr           -> and_op
+
+?not_expr: "not" not_expr                    -> not_op
+         | pipe_expr
+
+?pipe_expr: compare
+          | pipe_expr "|>" compare           -> pipe
+
+?compare: add_expr
+        | add_expr "==" add_expr             -> eq
+        | add_expr "!=" add_expr             -> ne
+        | add_expr "<" add_expr              -> lt
+        | add_expr ">" add_expr              -> gt
+        | add_expr "<=" add_expr             -> le
+        | add_expr ">=" add_expr             -> ge
+        | add_expr "in" add_expr             -> in_op
+
+?add_expr: mul_expr
+         | add_expr "+" mul_expr             -> add
+         | add_expr "-" mul_expr             -> sub
+
+?mul_expr: pow_expr
+         | mul_expr "*" pow_expr             -> mul
+         | mul_expr "/" pow_expr             -> div
+         | mul_expr "//" pow_expr            -> floordiv
+         | mul_expr "%" pow_expr             -> mod
+
+?pow_expr: unary
+         | unary "**" pow_expr               -> power_op
+
+?unary: "-" unary                            -> neg
+      | postfix
+
+?postfix: postfix "(" args? ")"              -> call
+        | postfix "." NAME                    -> attr
+        | postfix "[" slice_expr "]"          -> index
+        | atom
+
+// Slice support: list[1:3], list[::2]
+?slice_expr: expr ":" expr? ":" expr?        -> slice_full
+           | expr ":" expr?                  -> slice_simple
+           | ":" expr? ":" expr?             -> slice_from_start
+           | ":" expr?                       -> slice_from_start_simple
+           | expr
+
+args: arg ("," arg)*
+arg: NAME "=" expr                                -> kwarg
+   | "*" expr                                     -> spread_arg
+   | expr                                         -> posarg
+
+?atom: HEX_NUMBER                             -> hex_number
+     | BIN_NUMBER                             -> bin_number
+     | OCT_NUMBER                             -> oct_number
+     | FLOAT                                  -> float_num
+     | NUMBER                                 -> number
+     | FSTRING                                -> fstring
+     | MSTRING                                -> mstring
+     | STRING                                 -> string
+     | "true"                                 -> true_lit
+     | "false"                                -> false_lit
+     | "none"                                 -> none_lit
+     | NAME                                   -> var
+     | "[" list_items? "]"                    -> list_lit
+     | "{" dict_items? "}"                    -> dict_lit
+     | "(" expr ")"
+     | lambda_expr
+     | list_comp
+     | if_expr
+
+list_items: _NL* expr (_NL* "," _NL* expr)* _NL* ","? _NL*
+dict_items: _NL* dict_pair (_NL* "," _NL* dict_pair)* _NL* ","? _NL*
+dict_pair: expr ":" expr
+
+lambda_expr: "|" func_params? "|" expr        -> lambda_def
+
+// List comprehension: [x * 2 for x in list]
+list_comp: "[" expr "for" NAME "in" expr ("if" expr)? "]"
+
+// Inline if expression: value if condition else other
+if_expr: "(" expr "if" expr "else" expr ")"   -> inline_if
+
+// Tokens
+HEX_NUMBER: /0x[0-9a-fA-F]+/
+BIN_NUMBER: /0b[01]+/
+OCT_NUMBER: /0o[0-7]+/
+FLOAT: /\d+\.\d+/
+NUMBER: /\d+/
+FSTRING: /f\"[^\"]*\"/ | /f'[^']*'/
+MSTRING: /\"\"\"[\s\S]*?\"\"\"/ | /'''[\s\S]*?'''/
+STRING: /\"[^\"]*\"/ | /'[^']*'/
+NAME: /[a-zA-Z_぀-鿿][a-zA-Z0-9_぀-鿿]*/
+
+COMMENT: "//" /[^\n]/*
+%ignore COMMENT
+%ignore /[ \t]+/
+
+_NL: /\n/+

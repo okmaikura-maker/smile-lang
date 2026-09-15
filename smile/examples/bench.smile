@@ -1,0 +1,14 @@
+// ベンチマーク - フィボナッチ
+function fib(n) {
+    if n <= 1 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+start = now()
+result = fib(30)
+elapsed = now() - start
+
+print("fib(30) = " + to_string(result))
+print("実行時間: " + to_string(round_val(elapsed, 3)) + " 秒")

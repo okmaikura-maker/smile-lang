@@ -1,0 +1,22 @@
+// pip パッケージをそのまま使えるテスト
+
+// 標準ライブラリ
+import os
+import math
+from datetime import datetime
+import json as J
+
+// os
+print("カレントディレクトリ: " + os.getcwd())
+
+// math
+print("円周率: " + to_string(math.pi))
+print("sqrt(144) = " + to_string(math.sqrt(144)))
+
+// datetime
+now_time = datetime.now()
+print("現在時刻: " + to_string(now_time))
+
+// json as J
+data = J.dumps({"name": "Smile", "version": "0.1.0"}, ensure_ascii=false)
+print("JSON: " + data)

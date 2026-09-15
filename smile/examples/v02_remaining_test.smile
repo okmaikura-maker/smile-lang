@@ -1,0 +1,15 @@
+// v0.2 残り機能テスト
+
+print("=== 複数行文字列 ===")
+text = """これは
+複数行の
+文字列です"""
+print(text)
+
+print("\n=== .smileモジュールimport ===")
+import mylib
+print(mylib.greeting)
+print("add(3,4) = " + to_string(mylib.add(3, 4)))
+print("multiply(5,6) = " + to_string(mylib.multiply(5, 6)))
+
+print("\n=== 全テスト完了！ ===")

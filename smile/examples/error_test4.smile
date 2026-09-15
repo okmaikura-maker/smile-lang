@@ -1,0 +1,3 @@
+// エラーメッセージのテスト - IndexError
+items = ["a", "b", "c"]
+print(items[10])

@@ -1,0 +1,6 @@
+// PyPI自動取得テスト - artパッケージ (pip未インストール)
+import art
+
+result = art.text2art("Smile")
+print(result)
+print("自動取得成功！")

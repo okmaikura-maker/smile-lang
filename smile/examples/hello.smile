@@ -1,0 +1,48 @@
+// はじめてのSmileプログラム
+
+print("こんにちは、Smile言語へようこそ！ 🙂")
+
+name = input_smile("あなたの名前は？ > ")
+print("いい名前ですね、" + name + "さん！")
+
+// 計算してみよう
+x = 10
+y = 3
+print("10 + 3 = " + to_string(x + y))
+print("10 * 3 = " + to_string(x * y))
+
+// リストを使ってみよう
+fruits = ["りんご", "みかん", "バナナ", "ぶどう"]
+print("フルーツリスト: " + to_string(fruits))
+print("フルーツの数: " + to_string(length(fruits)))
+
+// 繰り返し
+for fruit in fruits {
+    print("  🍎 " + fruit)
+}
+
+// 条件分岐
+score = 85
+if score >= 90 {
+    print("すごい！Aランクです！")
+} else if score >= 70 {
+    print("いいね！Bランクです！")
+} else {
+    print("がんばろう！")
+}
+
+// 関数を作ろう
+function greet(person) {
+    return "やあ、" + person + "！元気？"
+}
+
+print(greet("太郎"))
+print(greet("花子"))
+
+// リスト操作
+numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+evens = filter_list(|n| n % 2 == 0, numbers)
+doubled = map_list(|n| n * 2, numbers)
+print("偶数: " + to_string(evens))
+print("2倍: " + to_string(doubled))
+print("合計: " + to_string(sum_val(numbers)))

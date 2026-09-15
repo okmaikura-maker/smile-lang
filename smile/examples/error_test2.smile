@@ -1,0 +1,4 @@
+// エラーメッセージのテスト - TypeError (文字列+数値)
+name = "太郎"
+age = 25
+print("名前: " + name + ", 年齢: " + age)

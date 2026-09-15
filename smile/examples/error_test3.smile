@@ -1,0 +1,4 @@
+// エラーメッセージのテスト - ZeroDivision
+x = 100
+y = 0
+result = x / y

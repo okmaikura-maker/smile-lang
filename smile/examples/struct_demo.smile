@@ -1,0 +1,32 @@
+// 構造体 (struct) を使ってみよう
+
+struct Player {
+    name
+    level
+    hp
+}
+
+// プレイヤーを作成
+hero = Player("勇者", 5, 100)
+print(hero)
+print("名前: " + hero.name)
+print("レベル: " + to_string(hero.level))
+print("HP: " + to_string(hero.hp))
+
+// レベルアップ！
+hero.level = hero.level + 1
+hero.hp = hero.hp + 20
+print("レベルアップ！")
+print(hero)
+
+// 複数のキャラクター
+party = [
+    Player("勇者", 6, 120),
+    Player("魔法使い", 4, 70),
+    Player("戦士", 5, 150)
+]
+
+print("=== パーティメンバー ===")
+for member in party {
+    print("  " + member.name + " Lv." + to_string(member.level) + " HP:" + to_string(member.hp))
+}

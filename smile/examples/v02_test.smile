@@ -1,0 +1,99 @@
+// Smile v0.2 新機能テスト
+
+print("=== try/catch/finally ===")
+try {
+    x = 10 / 0
+} catch e {
+    print("キャッチ: " + to_string(e))
+} finally {
+    print("finallyブロック実行")
+}
+
+print("\n=== デフォルト引数 ===")
+function greet(name, greeting="こんにちは") {
+    print(greeting + "、" + name + "さん！")
+}
+greet("太郎")
+greet("花子", "おはよう")
+
+print("\n=== 可変長引数 ===")
+function sum_all(*nums) {
+    return sum_val(nums)
+}
+print("合計: " + to_string(sum_all(1, 2, 3, 4, 5)))
+
+print("\n=== 整数除算 & べき乗 ===")
+print("7 // 2 = " + to_string(7 // 2))
+print("2 ** 10 = " + to_string(2 ** 10))
+
+print("\n=== 複数代入 ===")
+a, b, c = 1, 2, 3
+print("a=" + to_string(a) + " b=" + to_string(b) + " c=" + to_string(c))
+
+print("\n=== for ペア ===")
+pairs = [[1, "one"], [2, "two"], [3, "three"]]
+for i, name in enumerate_list(["apple", "banana", "cherry"]) {
+    print(to_string(i) + ": " + name)
+}
+
+print("\n=== パイプ演算子 ===")
+result = [3, 1, 4, 1, 5] |> sort |> reverse
+print("パイプ結果: " + to_string(result))
+
+print("\n=== in 演算子 ===")
+fruits = ["apple", "banana", "cherry"]
+if "banana" in fruits {
+    print("bananaはリストにあります")
+}
+
+print("\n=== f-string ===")
+name = "World"
+print(f"Hello, {name}!")
+x = 42
+print(f"The answer is {x}")
+
+print("\n=== リスト内包表記 ===")
+squares = [x * x for x in range(10)]
+print("平方数: " + to_string(squares))
+
+evens = [x for x in range(20) if x % 2 == 0]
+print("偶数: " + to_string(evens))
+
+print("\n=== スライス ===")
+nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+print("nums[2:5] = " + to_string(nums[2:5]))
+print("nums[:3] = " + to_string(nums[:3]))
+
+print("\n=== 三項演算子 ===")
+age = 20
+status = "大人" if age >= 18 else "子供"
+print("status = " + status)
+
+print("\n=== throw ===")
+try {
+    throw Exception("カスタムエラー")
+} catch e {
+    print("throwキャッチ: " + to_string(e))
+}
+
+print("\n=== スプレッド引数 ===")
+function add3(a, b, c) {
+    return a + b + c
+}
+args = [10, 20, 30]
+print("スプレッド: " + to_string(add3(*args)))
+
+print("\n=== struct 継承 ===")
+struct Animal {
+    name
+    sound
+}
+
+struct Dog extends Animal {
+    breed = "unknown"
+}
+
+dog = Dog("ポチ", "ワン", breed="柴犬")
+print("犬: " + dog.name + " " + dog.sound + " (" + dog.breed + ")")
+
+print("\n=== 全テスト完了！ ===")

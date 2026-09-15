@@ -1,0 +1,8 @@
+// pip installしたパッケージをそのまま使う
+
+// requests (もし入ってたら)
+import requests
+response = requests.get("https://httpbin.org/json")
+print("ステータス: " + to_string(response.status_code))
+data = response.json()
+print("レスポンス: " + to_string(data))

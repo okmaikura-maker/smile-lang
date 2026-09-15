@@ -1,0 +1,81 @@
+// Smile標準ライブラリのテスト
+
+print("=== 型変換・判定 ===")
+print("is_int(42): " + to_string(is_int(42)))
+print("is_string('hello'): " + to_string(is_string("hello")))
+print("type_of([1,2,3]): " + type_of([1,2,3]))
+
+print("\n=== コレクション ===")
+nums = [5, 3, 8, 1, 9, 2, 7]
+print("元: " + to_string(nums))
+print("sort: " + to_string(sort(nums)))
+print("reverse: " + to_string(reverse(nums)))
+print("unique: " + to_string(unique([1,2,2,3,3,3])))
+print("flatten: " + to_string(flatten([1, [2, 3], [4, [5]]])))
+print("chunk: " + to_string(chunk([1,2,3,4,5,6,7], 3)))
+print("zip: " + to_string(zip_lists(["a","b","c"], [1,2,3])))
+print("find: " + to_string(find(|x| x > 5, nums)))
+print("group_by: " + to_string(group_by(|x| x % 2, [1,2,3,4,5])))
+print("take: " + to_string(take(nums, 3)))
+print("drop: " + to_string(drop(nums, 3)))
+
+print("\n=== 文字列 ===")
+s = "  Hello, Smile!  "
+print("trim: '" + trim(s) + "'")
+print("upper: " + upper("smile"))
+print("lower: " + lower("SMILE"))
+print("replace: " + replace("hello world", "world", "smile"))
+print("starts_with: " + to_string(starts_with("hello", "hel")))
+print("pad_left: '" + pad_left("42", 6, "0") + "'")
+print("repeat: " + repeat("abc", 3))
+print("regex_find_all: " + to_string(regex_find_all("[0-9]+", "abc123def456")))
+
+print("\n=== 数学 ===")
+print("PI: " + to_string(PI))
+print("sqrt(16): " + to_string(sqrt(16)))
+print("power(2, 10): " + to_string(power(2, 10)))
+print("clamp(15, 0, 10): " + to_string(clamp(15, 0, 10)))
+print("lerp(0, 100, 0.3): " + to_string(lerp(0, 100, 0.3)))
+print("is_even(4): " + to_string(is_even(4)))
+print("floor(3.7): " + to_string(floor(3.7)))
+print("ceil(3.2): " + to_string(ceil(3.2)))
+
+print("\n=== ランダム ===")
+print("random_int(1,100): " + to_string(random_int(1, 100)))
+print("random_choice: " + random_choice(["a", "b", "c", "d"]))
+print("random_shuffle: " + to_string(random_shuffle([1,2,3,4,5])))
+
+print("\n=== 辞書 ===")
+d = {"name": "太郎", "age": 25, "city": "東京"}
+print("keys: " + to_string(keys(d)))
+print("values: " + to_string(values(d)))
+print("items: " + to_string(items(d)))
+print("pick: " + to_string(pick(d, ["name", "age"])))
+print("omit: " + to_string(omit(d, ["age"])))
+print("merge: " + to_string(merge(d, {"hobby": "プログラミング"})))
+print("get: " + to_string(get(d, "missing", "デフォルト")))
+
+print("\n=== JSON ===")
+json_str = json_stringify({"message": "こんにちは", "count": 42})
+print(json_str)
+parsed = json_parse(json_str)
+print("parsed: " + to_string(parsed))
+
+print("\n=== ハッシュ ===")
+print("md5: " + hash_md5("hello"))
+print("sha256: " + hash_sha256("hello"))
+print("base64: " + base64_encode("Hello Smile!"))
+print("decode: " + base64_decode(base64_encode("Hello Smile!")))
+
+print("\n=== 時間 ===")
+print("now_string: " + now_string())
+
+print("\n=== ファイル ===")
+print("file_exists: " + to_string(file_exists("smile/examples/stdlib_test.smile")))
+print("current_dir: " + current_dir())
+
+print("\n=== デバッグ ===")
+x = 42
+debug(x, "hello", [1,2,3])
+
+print("\n=== 全テスト完了！ ===")

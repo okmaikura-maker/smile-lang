@@ -1,0 +1,5 @@
+import numpy as np
+a = np.array([1, 2, 3, 4, 5])
+print("numpy配列: " + to_string(a))
+print("平均: " + to_string(np.mean(a)))
+print("合計: " + to_string(np.sum(a)))

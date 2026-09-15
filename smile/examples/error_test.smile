@@ -1,0 +1,2 @@
+// エラーメッセージのテスト - NameError
+print(hello_world)
