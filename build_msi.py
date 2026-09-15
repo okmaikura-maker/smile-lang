@@ -8,11 +8,11 @@ import uuid
 
 # 設定
 PRODUCT_NAME = "Smile Language"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 MANUFACTURER = "Smile Language Project"
 DESCRIPTION = "Smile言語 - 軽くて安全で優しいプログラミング言語"
 EXE_PATH = os.path.join(os.path.dirname(__file__), "dist", "smile.exe")
-OUTPUT_MSI = os.path.join(os.path.dirname(__file__), "dist", "smile-0.3.0-win64.msi")
+OUTPUT_MSI = os.path.join(os.path.dirname(__file__), "dist", "smile-0.4.0-win64.msi")
 INSTALL_DIR = "SmileLang"
 
 # UUIDs (固定してアップグレード対応)
