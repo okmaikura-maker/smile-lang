@@ -1,0 +1,62 @@
+// Compute + FFI テスト (import不要)
+
+print("=== GPU加速配列 ===")
+a = compute([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+b = a * 3.0 + 1.0
+print(f"入力: {a.tolist()}")
+print(f"x*3+1: {b.tolist()}")
+print(f"合計: {b.sum()}")
+print(f"平均: {b.mean()}")
+
+print("\n=== gpu_compute ===")
+data = [1.0, 2.0, 3.0, 4.0, 5.0]
+result = gpu_compute(data, "x * x + 1.0f")
+print(f"x^2+1: {result}")
+
+print("\n=== gpu_exec (複数配列) ===")
+a = [1.0, 2.0, 3.0, 4.0]
+b = [10.0, 20.0, 30.0, 40.0]
+result = gpu_exec("in0[i] * 2.0f + in1[i]", [a, b])
+print(f"a*2+b: {result}")
+
+print("\n=== FFI: msvcrt (C標準ライブラリ) ===")
+lib = ffi_load("msvcrt")
+lib.define("abs", ["int"], "int")
+print(f"abs(-42) = {lib.abs(-42)}")
+
+print("\n=== FFI: インラインCコンパイル ===")
+try {
+    mylib = ffi_compile("""
+#include <math.h>
+__declspec(dllexport) double hypotenuse(double a, double b) {
+    return sqrt(a*a + b*b);
+}
+__declspec(dllexport) int add(int a, int b) {
+    return a + b;
+}
+__declspec(dllexport) int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+""")
+    mylib.define("add", ["int", "int"], "int")
+    mylib.define("hypotenuse", ["double", "double"], "double")
+    mylib.define("factorial", ["int"], "int")
+    print(f"add(3, 4) = {mylib.add(3, 4)}")
+    print(f"hypotenuse(3, 4) = {mylib.hypotenuse(3.0, 4.0)}")
+    print(f"factorial(10) = {mylib.factorial(10)}")
+} catch e {
+    print(f"FFIコンパイルエラー: {e}")
+}
+
+print("\n=== FFI: 構造体 ===")
+Point = ffi_struct("Point", [["x", "double"], ["y", "double"]])
+p = Point(x=3.0, y=4.0)
+print(f"Point({p.x}, {p.y})")
+print(f"sizeof(Point) = {ffi_sizeof('double') * 2}")
+
+print("\n=== FFI: 配列 ===")
+arr = ffi_array("int", [10, 20, 30, 40, 50])
+print(f"arr[0]={arr[0]}, arr[4]={arr[4]}")
+
+print("\n=== 完了 ===")

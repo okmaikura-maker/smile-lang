@@ -615,6 +615,23 @@ def typeof(x):
 from smile.lowlevel import *
 
 # ============================================================
+# FFI - 他言語連携 (標準関数)
+# ============================================================
+from smile.ffi import (
+    ffi_load, ffi_compile, ffi_struct, ffi_callback,
+    ffi_array, ffi_buffer, ffi_cast, ffi_sizeof, ffi_null,
+    ffi_string, ffi_from_string,
+)
+
+# ============================================================
+# Compute - GPU/iGPU/CPU 計算エンジン (標準関数)
+# ============================================================
+from smile.compute import (
+    compute, gpu_exec, gpu_compute, cpu_parallel, parallel_map,
+    numpy_gpu, pandas_gpu, pil_gpu, saturate_all, ComputeArray,
+)
+
+# ============================================================
 # GPU / iGPU / CPU 飽和ベンチマーク (標準関数)
 # ============================================================
 
