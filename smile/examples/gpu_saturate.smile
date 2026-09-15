@@ -1,0 +1,173 @@
+// GPU 完全飽和テスト - 全パイプライン全開
+// 8本独立FMA列でALU飽和、メモリ帯域も同時に叩く
+
+from smile.gpu import gpu_devices
+from smile.gpu import OpenCLGPU
+
+print("============================================================")
+print("  GPU / iGPU 完全飽和ベンチマーク")
+print("  8本独立FMA + メモリ帯域飽和")
+print("============================================================")
+
+// 全デバイス列挙
+devices = gpu_devices()
+ocl_devs = [d for d in devices if d["backend"] == "opencl"]
+
+if length(ocl_devs) == 0 {
+    print("OpenCLデバイスが見つかりません")
+} else {
+    for dev in ocl_devs {
+        print(f"\n--- {dev['name']} ({dev['vendor']}) ---")
+        print(f"    Compute Units: {dev['compute_units']}")
+        print(f"    メモリ: {dev['memory_mb']} MB")
+
+        gpu = OpenCLGPU(dev["index"])
+
+        // ============================================
+        // Phase 1: ALU 完全飽和 (8本独立FMA)
+        // ============================================
+        print("\n  [Phase 1] ALU 飽和 (8本独立FMA列)")
+
+        saturate_kernel = """
+__kernel void saturate(__global float* out, const int iters) {
+    int i = get_global_id(0);
+    float a0 = i * 1e-6f,       a1 = a0 + 0.1f;
+    float a2 = a0 + 0.2f,       a3 = a0 + 0.3f;
+    float a4 = a0 + 0.4f,       a5 = a0 + 0.5f;
+    float a6 = a0 + 0.6f,       a7 = a0 + 0.7f;
+    for (int k = 0; k < iters; k++) {
+        a0 = a0 * 0.9f + 0.1f;  a1 = a1 * 0.9f + 0.1f;
+        a2 = a2 * 0.9f + 0.1f;  a3 = a3 * 0.9f + 0.1f;
+        a4 = a4 * 0.9f + 0.1f;  a5 = a5 * 0.9f + 0.1f;
+        a6 = a6 * 0.9f + 0.1f;  a7 = a7 * 0.9f + 0.1f;
+    }
+    out[i] = a0+a1+a2+a3+a4+a5+a6+a7;
+}
+"""
+        gpu.build(saturate_kernel)
+        kern = gpu.kernel("saturate")
+
+        // ワークアイテム数を最大化
+        gsize = 1024 * 1024
+        iters = 5000
+        buf = gpu.alloc(gsize * 4)
+
+        import time
+        launches = 0
+        seconds = 10.0
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < seconds {
+            kern.launch(gsize, [buf, iters], sync=false)
+            kern.launch(gsize, [buf, iters], sync=false)
+            kern.launch(gsize, [buf, iters], sync=false)
+            launches += 3
+            gpu.sync()
+        }
+        dt = time.perf_counter() - t0
+
+        // 8本FMA = 1イテレーションあたり 8 mul + 8 add = 16 FLOP
+        flop = launches * gsize * iters * 16
+        gflops = flop / dt / 1e9
+        print(f"    {gflops:.1f} GFLOPS ({launches} launches, {dt:.2f}秒)")
+
+        // ============================================
+        // Phase 2: メモリ帯域飽和
+        // ============================================
+        print("\n  [Phase 2] メモリ帯域飽和")
+
+        bw_kernel = """
+__kernel void bandwidth(__global float* a, __global float* b, __global float* c, const int n) {
+    int i = get_global_id(0);
+    if (i < n) {
+        c[i] = a[i] * 2.0f + b[i];
+    }
+}
+"""
+        gpu.build(bw_kernel)
+        bw_kern = gpu.kernel("bandwidth")
+
+        bw_size = 4 * 1024 * 1024
+        buf_a = gpu.alloc(bw_size * 4)
+        buf_b = gpu.alloc(bw_size * 4)
+        buf_c = gpu.alloc(bw_size * 4)
+
+        bw_launches = 0
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < 5.0 {
+            bw_kern.launch(bw_size, [buf_a, buf_b, buf_c, bw_size], sync=false)
+            bw_launches += 1
+            if bw_launches % 10 == 0 {
+                gpu.sync()
+            }
+        }
+        gpu.sync()
+        dt = time.perf_counter() - t0
+
+        // 2 read + 1 write = 3 * 4bytes * size
+        total_bytes = bw_launches * bw_size * 3 * 4
+        gbps = total_bytes / dt / 1e9
+        print(f"    {gbps:.1f} GB/s ({bw_launches} launches, {dt:.2f}秒)")
+
+        // ============================================
+        // Phase 3: 同時飽和 (ALU + メモリ)
+        // ============================================
+        print("\n  [Phase 3] ALU + メモリ 同時飽和")
+
+        dual_kernel = """
+__kernel void dual_saturate(
+    __global float* mem_a, __global float* mem_b, __global float* mem_out,
+    __global float* alu_out, const int n, const int alu_iters
+) {
+    int i = get_global_id(0);
+    // メモリ側: read + write
+    if (i < n) {
+        mem_out[i] = mem_a[i] * 1.5f + mem_b[i] * 0.5f;
+    }
+    // ALU側: 8本独立FMA
+    float a0 = i * 1e-7f, a1 = a0+0.1f, a2 = a0+0.2f, a3 = a0+0.3f;
+    float a4 = a0+0.4f, a5 = a0+0.5f, a6 = a0+0.6f, a7 = a0+0.7f;
+    for (int k = 0; k < alu_iters; k++) {
+        a0 = a0*0.9f+0.1f; a1 = a1*0.9f+0.1f;
+        a2 = a2*0.9f+0.1f; a3 = a3*0.9f+0.1f;
+        a4 = a4*0.9f+0.1f; a5 = a5*0.9f+0.1f;
+        a6 = a6*0.9f+0.1f; a7 = a7*0.9f+0.1f;
+    }
+    if (i < n) {
+        alu_out[i] = a0+a1+a2+a3+a4+a5+a6+a7;
+    }
+}
+"""
+        gpu.build(dual_kernel)
+        dual_kern = gpu.kernel("dual_saturate")
+
+        dual_size = 2 * 1024 * 1024
+        dual_iters = 3000
+        d_a = gpu.alloc(dual_size * 4)
+        d_b = gpu.alloc(dual_size * 4)
+        d_mem_out = gpu.alloc(dual_size * 4)
+        d_alu_out = gpu.alloc(dual_size * 4)
+
+        dual_launches = 0
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < 8.0 {
+            dual_kern.launch(dual_size, [d_a, d_b, d_mem_out, d_alu_out, dual_size, dual_iters], sync=false)
+            dual_kern.launch(dual_size, [d_a, d_b, d_mem_out, d_alu_out, dual_size, dual_iters], sync=false)
+            dual_kern.launch(dual_size, [d_a, d_b, d_mem_out, d_alu_out, dual_size, dual_iters], sync=false)
+            dual_launches += 3
+            gpu.sync()
+        }
+        dt = time.perf_counter() - t0
+
+        alu_flop = dual_launches * dual_size * dual_iters * 16
+        mem_bytes = dual_launches * dual_size * 3 * 4
+        alu_gflops = alu_flop / dt / 1e9
+        mem_gbps = mem_bytes / dt / 1e9
+        print(f"    ALU: {alu_gflops:.1f} GFLOPS + メモリ: {mem_gbps:.1f} GB/s ({dt:.2f}秒)")
+
+        print(f"\n  === {dev['name']}: 飽和完了 ===")
+    }
+}
+
+print("\n============================================================")
+print("  全GPU飽和テスト完了")
+print("============================================================")

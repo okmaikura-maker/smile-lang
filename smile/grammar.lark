@@ -195,7 +195,7 @@ if_expr: "(" expr "if" expr "else" expr ")"   -> inline_if
 HEX_NUMBER: /0x[0-9a-fA-F]+/
 BIN_NUMBER: /0b[01]+/
 OCT_NUMBER: /0o[0-7]+/
-FLOAT: /\d+\.\d+/
+FLOAT: /\d+\.\d+([eE][+-]?\d+)?/ | /\d+[eE][+-]?\d+/
 NUMBER: /\d+/
 FSTRING: /f\"[^\"]*\"/ | /f'[^']*'/
 MSTRING: /\"\"\"[\s\S]*?\"\"\"/ | /'''[\s\S]*?'''/
