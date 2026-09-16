@@ -13,7 +13,7 @@ def _get_base_path():
     return Path(__file__).parent
 
 GRAMMAR_PATH = _get_base_path() / "grammar.lark"
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -568,8 +568,14 @@ SMILE_PRELUDE = "from smile.stdlib import *\nimport smile.pypi_fetch as _pypi; _
 # ============================================================
 from smile.errors import format_runtime_error, analyze_syntax_error
 
+_COMPILE_CACHE = {}
 
 def compile_smile(source, filename="<smile>"):
+    if source.startswith("﻿"):
+        source = source[1:]
+    h = hash(source)
+    if h in _COMPILE_CACHE:
+        return _COMPILE_CACHE[h]
     parser = create_parser()
     try:
         tree = parser.parse(source)
@@ -578,7 +584,9 @@ def compile_smile(source, filename="<smile>"):
         print(err.render())
         sys.exit(1)
     codegen = CodeGen()
-    return codegen.gen(tree)
+    result = codegen.gen(tree)
+    _COMPILE_CACHE[h] = result
+    return result
 
 
 _PRELUDE_GLOBALS = None
@@ -593,22 +601,46 @@ def _get_prelude_globals():
     return globs
 
 
+def _get_cache_path(filename):
+    if filename.startswith("<"):
+        return None
+    import hashlib
+    cache_dir = os.path.join(os.path.dirname(filename) or ".", "__smilecache__")
+    base = os.path.basename(filename).replace(".smile", "")
+    return os.path.join(cache_dir, base + ".smilec")
+
+
 def run_smile(source, filename="<smile>"):
     """コンパイルインタプリタ: .py生成 → 実行 → 自動削除"""
-    import tempfile
-    python_code = compile_smile(source, filename)
-    full_code = SMILE_PRELUDE + python_code
+    import tempfile, marshal, hashlib
 
-    # 一時Pythonファイルに書き出し
-    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".py", prefix="smile_")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            f.write(full_code)
+    src_hash = hashlib.md5(source.encode("utf-8")).digest()
+    cache_path = _get_cache_path(filename)
+    code_obj = None
 
-        # コンパイル (構文チェック+バイトコード化)
+    if cache_path and os.path.exists(cache_path):
+        try:
+            with open(cache_path, "rb") as cf:
+                stored_hash = cf.read(16)
+                if stored_hash == src_hash:
+                    code_obj = marshal.load(cf)
+        except Exception:
+            pass
+
+    if code_obj is None:
+        python_code = compile_smile(source, filename)
+        full_code = SMILE_PRELUDE + python_code
         code_obj = compile(full_code, filename, "exec")
+        if cache_path:
+            try:
+                os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                with open(cache_path, "wb") as cf:
+                    cf.write(src_hash)
+                    marshal.dump(code_obj, cf)
+            except Exception:
+                pass
 
-        # 実行
+    try:
         globs = dict(_get_prelude_globals())
         globs["__name__"] = "__main__"
         globs["__file__"] = filename
@@ -618,19 +650,6 @@ def run_smile(source, filename="<smile>"):
     except Exception as e:
         print(format_runtime_error(e, source, filename))
         sys.exit(1)
-    finally:
-        # 自動削除
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        # .pycも消す
-        pyc = tmp_path + "c"
-        if os.path.exists(pyc):
-            try:
-                os.unlink(pyc)
-            except OSError:
-                pass
 
 
 # ============================================================
@@ -665,7 +684,7 @@ class SmileModuleLoader(importlib.abc.Loader):
         mod.__file__ = self.filepath
         mod.__loader__ = self
         sys.modules[fullname] = mod
-        source = Path(self.filepath).read_text(encoding="utf-8")
+        source = Path(self.filepath).read_text(encoding="utf-8-sig")
         python_code = compile_smile(source, self.filepath)
         full_code = SMILE_PRELUDE + python_code
         code_obj = compile(full_code, self.filepath, "exec")
@@ -688,7 +707,7 @@ def cmd_run(args):
         print(f"\n  ファイルが見つかりません: {filepath}")
         sys.exit(1)
     sys.argv = [filepath] + args[1:]
-    source = Path(filepath).read_text(encoding="utf-8")
+    source = Path(filepath).read_text(encoding="utf-8-sig")
     run_smile(source, filepath)
 
 
@@ -879,6 +898,72 @@ def cmd_fmt(args):
         sys.exit(1)
 
 
+def cmd_watch(args):
+    """ファイル変更を監視して自動再実行"""
+    if not args:
+        print("使い方: smile watch <ファイル.smile>")
+        sys.exit(1)
+    filepath = args[0]
+    if not os.path.exists(filepath):
+        print(f"ファイルが見つかりません: {filepath}")
+        sys.exit(1)
+    import time
+    print(f"監視中: {filepath} (Ctrl+C で終了)")
+    last_mtime = 0
+    while True:
+        try:
+            mtime = os.path.getmtime(filepath)
+            if mtime != last_mtime:
+                last_mtime = mtime
+                print(f"\n{'='*40}")
+                print(f"  再実行: {filepath}")
+                print(f"{'='*40}")
+                try:
+                    source = Path(filepath).read_text(encoding="utf-8")
+                    run_smile(source, filepath)
+                except SystemExit:
+                    pass
+                except Exception as e:
+                    print(f"エラー: {e}")
+            time.sleep(0.3)
+        except KeyboardInterrupt:
+            print("\n監視終了")
+            break
+
+
+def cmd_bench():
+    """システムベンチマーク"""
+    import time
+    print(LOGO)
+    print(f"  Smile Language v{VERSION} - ベンチマーク")
+    print("=" * 40)
+
+    # パーサ初期化
+    t0 = time.perf_counter()
+    create_parser()
+    dt = time.perf_counter() - t0
+    print(f"  パーサ初期化: {dt*1000:.1f}ms")
+
+    # コンパイル速度
+    code = "x = 1 + 2\nprint(x)"
+    t0 = time.perf_counter()
+    for _ in range(100):
+        _COMPILE_CACHE.clear()
+        compile_smile(code, "bench.smile")
+    dt = time.perf_counter() - t0
+    print(f"  コンパイル(2行) x100: {dt*1000:.1f}ms ({dt*10:.2f}ms/回)")
+
+    # キャッシュヒット
+    compile_smile(code, "bench.smile")
+    t0 = time.perf_counter()
+    for _ in range(10000):
+        compile_smile(code, "bench.smile")
+    dt = time.perf_counter() - t0
+    print(f"  キャッシュヒット x10000: {dt*1000:.1f}ms ({dt*0.1:.4f}ms/回)")
+
+    print("=" * 40)
+
+
 def cmd_help():
     print(LOGO)
     print(f"  Smile Language v{VERSION}")
@@ -889,7 +974,9 @@ def cmd_help():
     print("  smile init [名前]             新しいプロジェクトを作成")
     print("  smile test [ディレクトリ]     テストを実行")
     print("  smile fmt <ファイル.smile>    コード整形")
+    print("  smile watch <ファイル.smile>  ファイル変更で自動再実行")
     print("  smile debug <ファイル.smile>  ステップ実行デバッガー")
+    print("  smile bench                   パフォーマンスベンチマーク")
     print("  smile install <パッケージ>    PyPIから一時取得")
     print("  smile repl                    対話モード")
     print("  smile version                 バージョン表示")
@@ -925,6 +1012,10 @@ def main():
         cmd_repl()
     elif cmd == "version":
         cmd_version()
+    elif cmd == "watch":
+        cmd_watch(sys.argv[2:])
+    elif cmd == "bench":
+        cmd_bench()
     elif cmd == "help":
         cmd_help()
     elif cmd.endswith(".smile"):

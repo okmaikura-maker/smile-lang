@@ -6,11 +6,11 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('C:\\Users\\user\\Desktop\\smile-lang\\smile\\grammar.lark', 'smile'), ('C:\\Users\\user\\Desktop\\smile-lang\\smile\\logo.svg', 'smile')],
-    hiddenimports=['smile.compiler', 'smile.errors', 'smile.stdlib', 'smile.pypi_fetch', 'smile.lowlevel', 'smile.debugger', 'smile.lsp', 'smile.web', 'lark'],
+    hiddenimports=['smile.compiler', 'smile.errors', 'smile.stdlib', 'smile.pypi_fetch', 'smile.lowlevel', 'smile.debugger', 'smile.lsp', 'smile.web', 'smile.gpu', 'smile.ffi', 'smile.compute', 'lark'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['bitsandbytes', 'torch', 'tensorflow', 'transformers', 'numpy', 'pandas', 'scipy', 'matplotlib', 'PIL', 'cv2', 'sklearn'],
     noarchive=False,
     optimize=0,
 )

@@ -578,6 +578,376 @@ def platform():
     return _sys.platform
 
 # ============================================================
+# UUID
+# ============================================================
+def uuid4():
+    import uuid
+    return str(uuid.uuid4())
+
+def uuid_short():
+    import uuid
+    return uuid.uuid4().hex[:8]
+
+# ============================================================
+# 圧縮・展開
+# ============================================================
+def compress(data, level=9):
+    import zlib
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return zlib.compress(data, level)
+
+def decompress(data):
+    import zlib
+    return zlib.decompress(data)
+
+def gzip_compress(data):
+    import gzip
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return gzip.compress(data)
+
+def gzip_decompress(data):
+    import gzip
+    return gzip.decompress(data)
+
+# ============================================================
+# SQLite (import不要データベース)
+# ============================================================
+def db_open(path=":memory:"):
+    import sqlite3
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def db_exec(conn, sql, params=None):
+    cur = conn.execute(sql, params or [])
+    conn.commit()
+    return cur
+
+def db_query(conn, sql, params=None):
+    cur = conn.execute(sql, params or [])
+    return [dict(row) for row in cur.fetchall()]
+
+def db_close(conn):
+    conn.close()
+
+# ============================================================
+# 暗号・セキュリティ
+# ============================================================
+def hmac_sha256(key, msg):
+    import hmac, hashlib
+    if isinstance(key, str):
+        key = key.encode("utf-8")
+    if isinstance(msg, str):
+        msg = msg.encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
+def random_bytes(n):
+    import secrets
+    return secrets.token_bytes(n)
+
+def random_hex(n):
+    import secrets
+    return secrets.token_hex(n)
+
+def random_token(n=32):
+    import secrets
+    return secrets.token_urlsafe(n)
+
+# ============================================================
+# 並列・非同期
+# ============================================================
+def parallel_for(func, items, workers=None):
+    import concurrent.futures, os
+    w = workers or (os.cpu_count() or 4)
+    items_list = list(items)
+    try:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=w) as ex:
+            return list(ex.map(func, items_list, chunksize=max(1, len(items_list) // w)))
+    except Exception:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=w) as ex:
+            return list(ex.map(func, items_list))
+
+def thread_map(func, items, workers=None):
+    import concurrent.futures, os
+    w = workers or (os.cpu_count() or 4)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=w) as ex:
+        return list(ex.map(func, list(items)))
+
+def async_run(coro):
+    import asyncio
+    return asyncio.run(coro)
+
+def async_gather(*coros):
+    import asyncio
+    async def _g():
+        return await asyncio.gather(*coros)
+    return asyncio.run(_g())
+
+# ============================================================
+# デコレータ
+# ============================================================
+def cache(func):
+    from functools import lru_cache
+    return lru_cache(maxsize=None)(func)
+
+def retry(n=3, delay=0.1):
+    import time, functools
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*a, **kw):
+            for i in range(n):
+                try:
+                    return func(*a, **kw)
+                except Exception:
+                    if i == n - 1:
+                        raise
+                    time.sleep(delay)
+        return wrapper
+    return decorator
+
+def throttle(seconds):
+    import time, functools
+    def decorator(func):
+        last = [0.0]
+        @functools.wraps(func)
+        def wrapper(*a, **kw):
+            now = time.time()
+            if now - last[0] >= seconds:
+                last[0] = now
+                return func(*a, **kw)
+        return wrapper
+    return decorator
+
+def once(func):
+    import functools
+    result = []
+    @functools.wraps(func)
+    def wrapper(*a, **kw):
+        if not result:
+            result.append(func(*a, **kw))
+        return result[0]
+    return wrapper
+
+# ============================================================
+# 関数型プログラミング
+# ============================================================
+def compose(*fns):
+    def composed(x):
+        for f in reversed(fns):
+            x = f(x)
+        return x
+    return composed
+
+def pipe_fn(*fns):
+    def piped(x):
+        for f in fns:
+            x = f(x)
+        return x
+    return piped
+
+def partial(func, *args, **kwargs):
+    from functools import partial as _partial
+    return _partial(func, *args, **kwargs)
+
+def identity(x):
+    return x
+
+def constantly(x):
+    return lambda *a, **kw: x
+
+def juxt(*fns):
+    def juxtaposed(*a, **kw):
+        return [f(*a, **kw) for f in fns]
+    return juxtaposed
+
+# ============================================================
+# テンプレート・フォーマッタ
+# ============================================================
+def table(headers, rows, padding=2):
+    widths = [len(str(h)) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], len(str(cell)))
+    sep = " " * padding
+    header_line = sep.join(str(h).ljust(widths[i]) for i, h in enumerate(headers))
+    divider = sep.join("-" * w for w in widths)
+    lines = [header_line, divider]
+    for row in rows:
+        lines.append(sep.join(str(cell).ljust(widths[i]) for i, cell in enumerate(row)))
+    return "\n".join(lines)
+
+def progress_bar(current, total, width=40, label=""):
+    filled = int(width * current / total) if total > 0 else 0
+    bar = "█" * filled + "░" * (width - filled)
+    pct = 100 * current / total if total > 0 else 0
+    return f"{label}|{bar}| {pct:.1f}% ({current}/{total})"
+
+def color(text, code):
+    codes = {"red": 31, "green": 32, "yellow": 33, "blue": 34,
+             "magenta": 35, "cyan": 36, "white": 37, "bold": 1, "dim": 2}
+    c = codes.get(code, code) if isinstance(code, str) else code
+    return f"\033[{c}m{text}\033[0m"
+
+# ============================================================
+# バリデーション
+# ============================================================
+def is_email(s):
+    import re
+    return bool(re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', s))
+
+def is_url(s):
+    import re
+    return bool(re.match(r'^https?://[^\s]+$', s))
+
+def is_ip(s):
+    parts = s.split(".")
+    if len(parts) != 4:
+        return False
+    return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+
+def is_json(s):
+    import json
+    try:
+        json.loads(s)
+        return True
+    except Exception:
+        return False
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+# ============================================================
+# データ変換
+# ============================================================
+def to_bytes(s, encoding="utf-8"):
+    if isinstance(s, bytes):
+        return s
+    return s.encode(encoding)
+
+def from_bytes(b, encoding="utf-8"):
+    if isinstance(b, str):
+        return b
+    return b.decode(encoding)
+
+def hex_encode(data):
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return data.hex()
+
+def hex_decode(s):
+    return bytes.fromhex(s)
+
+# ============================================================
+# 統計
+# ============================================================
+def mean(lst):
+    return sum(lst) / len(lst)
+
+def median(lst):
+    s = sorted(lst)
+    n = len(s)
+    if n % 2 == 1:
+        return s[n // 2]
+    return (s[n // 2 - 1] + s[n // 2]) / 2
+
+def stdev(lst):
+    m = mean(lst)
+    variance = sum((x - m) ** 2 for x in lst) / len(lst)
+    return variance ** 0.5
+
+def percentile(lst, p):
+    s = sorted(lst)
+    k = (len(s) - 1) * (p / 100.0)
+    f = int(k)
+    c = f + 1
+    if c >= len(s):
+        return s[f]
+    return s[f] + (k - f) * (s[c] - s[f])
+
+def histogram(lst, bins=10):
+    lo, hi = min(lst), max(lst)
+    width = (hi - lo) / bins if hi != lo else 1
+    counts = [0] * bins
+    for x in lst:
+        idx = min(int((x - lo) / width), bins - 1)
+        counts[idx] += 1
+    return [{"low": lo + i * width, "high": lo + (i + 1) * width, "count": c}
+            for i, c in enumerate(counts)]
+
+# ============================================================
+# ネットワーク
+# ============================================================
+def download(url, path):
+    from urllib.request import urlretrieve
+    urlretrieve(url, path)
+    return path
+
+def ip_address():
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        addr = s.getsockname()[0]
+        s.close()
+        return addr
+    except Exception:
+        return "127.0.0.1"
+
+def hostname():
+    import socket
+    return socket.gethostname()
+
+def port_open(host, port, timeout=1.0):
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect((host, port))
+        s.close()
+        return True
+    except Exception:
+        return False
+
+# ============================================================
+# 日時
+# ============================================================
+def today():
+    from datetime import date
+    return str(date.today())
+
+def timestamp():
+    import time
+    return int(time.time())
+
+def datetime_parse(s, fmt="%Y-%m-%d %H:%M:%S"):
+    from datetime import datetime
+    return datetime.strptime(s, fmt)
+
+def datetime_format(dt, fmt="%Y-%m-%d %H:%M:%S"):
+    return dt.strftime(fmt)
+
+def time_diff(start, end):
+    return end - start
+
+def stopwatch():
+    import time
+    t0 = time.perf_counter()
+    class SW:
+        def elapsed(self):
+            return time.perf_counter() - t0
+        def lap(self):
+            return time.perf_counter() - t0
+        def __repr__(self):
+            return f"Stopwatch({self.elapsed():.4f}s)"
+    return SW()
+
+# ============================================================
 # デバッグ・ユーティリティ
 # ============================================================
 def debug(*values):

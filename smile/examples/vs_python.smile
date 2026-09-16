@@ -1,0 +1,214 @@
+// Smile vs Python 比較実測テスト
+import time
+import sys
+
+print("============================================================")
+print("  Smile vs Python 比較実測")
+print("============================================================")
+
+// ============================================
+// 1. エラーメッセージ: Smile vs Python
+// ============================================
+print("\n[1] エラーメッセージ品質")
+print("  Python: NameError: name 'prnt' is not defined")
+print("  Smile:  'prnt' という名前は見つかりません → もしかして: print")
+print("         → 修正方法まで日本語で提案")
+print("  判定: Smile の圧勝")
+
+// ============================================
+// 2. パッケージ取得: pip install vs 自動
+// ============================================
+print("\n[2] パッケージ取得")
+print("  Python: pip install requests → import requests")
+print("  Smile:  import requests  (自動DL+実行後自動削除)")
+print("  判定: Smile はゼロ手順")
+
+// ============================================
+// 3. GPU利用: CuPy vs Smile直叩き
+// ============================================
+print("\n[3] GPU利用の手軽さ")
+print("  Python + CuPy:")
+print("    pip install cupy-cuda11x  (500MB+)")
+print("    CUDA Toolkit必要 (2GB+)")
+print("    import cupy as cp")
+print("    a = cp.array([1,2,3])")
+print("")
+print("  Smile:")
+print("    a = compute([1,2,3])     (import不要, DLLのみ)")
+print("    gpu_compute(data, 'x*x') (pip不要)")
+print("  判定: Smile はインストール 0MB, 依存 0")
+
+// ============================================
+// 4. FFI: ctypes生書き vs ffi_load
+// ============================================
+print("\n[4] FFI (他言語呼び出し)")
+print("  Python:")
+print("    import ctypes")
+print("    lib = ctypes.CDLL('msvcrt')")
+print("    lib.abs.argtypes = [ctypes.c_int]")
+print("    lib.abs.restype = ctypes.c_int")
+print("    lib.abs(-42)")
+print("")
+print("  Smile:")
+print("    lib = ffi_load('msvcrt')")
+print("    lib.define('abs', ['int'], 'int')")
+print("    lib.abs(-42)")
+print("  判定: Smile は 3行 vs Python 5行, 型名も直感的")
+
+// ============================================
+// 5. インラインCコンパイル
+// ============================================
+print("\n[5] インラインCコンパイル")
+print("  Python: 標準では不可能。cffi/cython/pybind11が必要")
+print("  Smile:  ffi_compile('...Cソース...') で即コンパイル&実行")
+
+// 実測
+try {
+    t0 = time.perf_counter()
+    mylib = ffi_compile("""
+__declspec(dllexport) long long fib(int n) {
+    if (n <= 1) return n;
+    long long a = 0, b = 1;
+    for (int i = 2; i <= n; i++) {
+        long long c = a + b;
+        a = b;
+        b = c;
+    }
+    return b;
+}
+
+__declspec(dllexport) double dot_product(double* a, double* b, int n) {
+    double sum = 0.0;
+    for (int i = 0; i < n; i++) sum += a[i] * b[i];
+    return sum;
+}
+""")
+    compile_dt = time.perf_counter() - t0
+    print(f"  Cコンパイル: {compile_dt*1000:.0f}ms")
+
+    mylib.define("fib", ["int"], "int64")
+    t0 = time.perf_counter()
+    for _ in range(1000000) {
+        mylib.fib(50)
+    }
+    c_dt = time.perf_counter() - t0
+
+    // 同じことをSmile(Python)で
+    function fib_smile(n) {
+        a = 0
+        b = 1
+        for i in range(2, n + 1) {
+            c = a + b
+            a = b
+            b = c
+        }
+        return b
+    }
+    t0 = time.perf_counter()
+    for _ in range(1000000) {
+        fib_smile(50)
+    }
+    py_dt = time.perf_counter() - t0
+
+    print(f"  C   fib(50) x1M回: {c_dt*1000:.0f}ms")
+    print(f"  Smile fib(50) x1M回: {py_dt*1000:.0f}ms")
+    print(f"  C は {py_dt/c_dt:.1f}x 高速")
+} catch e {
+    print(f"  (Cコンパイラなし: {e})")
+}
+
+// ============================================
+// 6. GPU計算 実測
+// ============================================
+print("\n[6] GPU計算 実測")
+from smile.gpu import gpu_devices, OpenCLGPU, gpu_map
+
+nvidia = none
+igpu = none
+for dev in gpu_devices() {
+    if dev["backend"] == "opencl" {
+        if "NVIDIA" in dev["vendor"].upper() and nvidia == none {
+            nvidia = dev
+        }
+        if "INTEL" in dev["vendor"].upper() and igpu == none {
+            igpu = dev
+        }
+    }
+}
+
+sizes = [10000, 100000, 1000000, 5000000]
+for sz in sizes {
+    data = [float(i) for i in range(sz)]
+
+    // Python (リスト内包表記)
+    t0 = time.perf_counter()
+    result_py = [x * x + 1.0 for x in data]
+    py_dt = time.perf_counter() - t0
+
+    // Smile GPU (NVIDIA)
+    if nvidia != none {
+        gpu = OpenCLGPU(nvidia["index"])
+        t0 = time.perf_counter()
+        result_gpu = gpu_map("x * x + 1.0f", data, gpu)
+        gpu_dt = time.perf_counter() - t0
+        speedup = py_dt / gpu_dt if gpu_dt > 0 else 0
+        print(f"  x*x+1 ({sz}要素): Python {py_dt*1000:.1f}ms, GPU {gpu_dt*1000:.1f}ms ({speedup:.1f}x)")
+    } else {
+        print(f"  x*x+1 ({sz}要素): Python {py_dt*1000:.1f}ms (GPU なし)")
+    }
+}
+
+// ============================================
+// 7. Web: Flask vs Smile.web
+// ============================================
+print("\n[7] Webフレームワーク")
+print("  Flask:")
+print("    pip install flask")
+print("    from flask import Flask")
+print("    app = Flask(__name__)")
+print("    @app.route('/')")
+print("    def index(): return '<h1>Hello</h1>'")
+print("    app.run()")
+print("")
+print("  Smile:")
+print("    from smile.web import create_app")
+print("    app = create_app('MyApp')")
+print("    @app.get('/')")
+print("    function index(req, res) { res.html('<h1>Hello</h1>') }")
+print("    app.run()")
+print("  判定: ほぼ同等。Smileはpip install不要")
+
+// ============================================
+// 8. 標準関数の充実度
+// ============================================
+print("\n[8] 標準関数 (import不要)")
+print("  Python: len(), sorted(), print() 等 約60個")
+print("  Smile:  length(), sort(), print() + clamp(), lerp(), flatten(),")
+print("          chunk(), group_by(), unique(), http_get(), json_parse(),")
+print("          read_file(), regex_match(), compute(), ffi_load()...")
+print("          80+ 関数がimport不要")
+print("  判定: Smile は実用関数を最初から全部入り")
+
+// ============================================
+// 9. 低レイヤー
+// ============================================
+print("\n[9] 低レイヤーアクセス")
+print("  Python: ctypes + struct + mmap を自分で組み合わせる")
+print("  Smile:  bios_info(), memory_new(), asm_new() が標準")
+print("  判定: Smile は安全なラッパーで即使える")
+
+// ============================================
+// 10. 総合
+// ============================================
+print("\n============================================================")
+print("  総合比較")
+print("============================================================")
+print("  エラーメッセージ     : Smile >>> Python (日本語+修正提案)")
+print("  パッケージ管理       : Smile >> Python  (自動DL+自動削除)")
+print("  GPU利用             : Smile >> Python  (0依存, DLLのみ)")
+print("  FFI                 : Smile > Python   (簡潔な構文)")
+print("  実行速度            : Python = Smile   (同じランタイム)")
+print("  FFI経由のC実行速度   : Smile = Python   (同じctypes)")
+print("  エコシステム         : Python >>> Smile (PyPI 50万+)")
+print("  ドキュメント         : Python >>> Smile (アルファ版)")
+print("============================================================")

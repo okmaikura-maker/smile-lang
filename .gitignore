@@ -8,3 +8,6 @@ build/
 *.whl
 .venv/
 venv/
+__smilecache__/
+test_hello.smile
+test_simple.smile

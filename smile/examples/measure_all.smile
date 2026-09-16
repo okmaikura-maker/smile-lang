@@ -1,0 +1,264 @@
+// Smile言語 全機能実測テスト
+import time
+import sys
+
+print("============================================================")
+print("  Smile言語 v0.4.0 - 全機能実測レポート")
+print("============================================================")
+
+// --- コンパイル速度 ---
+print("\n[1] コンパイル速度")
+from smile.compiler import compile_smile
+code_small = "x = 1 + 2\nprint(x)"
+code_mid = ""
+for i in range(50) {
+    code_mid = code_mid + f"x{i} = {i} * 2 + 1\n"
+}
+code_large = ""
+for i in range(200) {
+    code_large = code_large + f"x{i} = {i} * 2 + 1\n"
+}
+
+t0 = time.perf_counter()
+for _ in range(100) {
+    compile_smile(code_small, "small.smile")
+}
+dt = time.perf_counter() - t0
+print(f"  小 (2行) x100回: {dt*1000:.1f}ms (1回 {dt*10:.2f}ms)")
+
+t0 = time.perf_counter()
+for _ in range(100) {
+    compile_smile(code_mid, "mid.smile")
+}
+dt = time.perf_counter() - t0
+print(f"  中 (50行) x100回: {dt*1000:.1f}ms (1回 {dt*10:.2f}ms)")
+
+t0 = time.perf_counter()
+for _ in range(20) {
+    compile_smile(code_large, "large.smile")
+}
+dt = time.perf_counter() - t0
+print(f"  大 (200行) x20回: {dt*1000:.1f}ms (1回 {dt*50:.2f}ms)")
+
+// --- 標準関数速度 ---
+print("\n[2] 標準関数速度")
+data = list(range(100000))
+
+t0 = time.perf_counter()
+for _ in range(10) {
+    sort(list(data))
+}
+dt = time.perf_counter() - t0
+print(f"  sort(100K要素) x10回: {dt*1000:.1f}ms (1回 {dt*100:.2f}ms)")
+
+t0 = time.perf_counter()
+for _ in range(100) {
+    length(data)
+}
+dt = time.perf_counter() - t0
+print(f"  length(100K) x100回: {dt*1000:.3f}ms")
+
+str_data = "Hello, Smile言語! これはテスト文字列です。" * 100
+t0 = time.perf_counter()
+for _ in range(10000) {
+    upper(str_data)
+}
+dt = time.perf_counter() - t0
+print(f"  upper(2.6KB文字列) x10000回: {dt*1000:.1f}ms")
+
+t0 = time.perf_counter()
+for _ in range(10000) {
+    split(str_data, " ")
+}
+dt = time.perf_counter() - t0
+print(f"  split(2.6KB文字列) x10000回: {dt*1000:.1f}ms")
+
+j = json_stringify({"a": 1, "b": [1,2,3], "c": {"d": "hello"}})
+t0 = time.perf_counter()
+for _ in range(10000) {
+    json_parse(j)
+}
+dt = time.perf_counter() - t0
+print(f"  json_parse x10000回: {dt*1000:.1f}ms")
+
+// --- GPU compute ---
+print("\n[3] GPU Compute")
+from smile.gpu import gpu_devices, OpenCLGPU, gpu_map, gpu_sum
+
+devices = gpu_devices()
+for dev in devices {
+    if dev["backend"] == "opencl" {
+        gpu = OpenCLGPU(dev["index"])
+        name = dev["name"]
+
+        // gpu_map
+        sizes = [1000, 10000, 100000, 1000000]
+        for sz in sizes {
+            data = [1.0] * sz
+            t0 = time.perf_counter()
+            result = gpu_map("x * x + 1.0f", data, gpu)
+            dt = time.perf_counter() - t0
+            print(f"  gpu_map({sz}要素) [{name}]: {dt*1000:.2f}ms")
+        }
+
+        // gpu_sum
+        data = [1.0] * 100000
+        t0 = time.perf_counter()
+        for _ in range(10) {
+            gpu_sum(data, gpu)
+        }
+        dt = time.perf_counter() - t0
+        print(f"  gpu_sum(100K) x10回 [{name}]: {dt*1000:.1f}ms (1回 {dt*100:.2f}ms)")
+    }
+}
+
+// --- GPU飽和 ---
+print("\n[4] GPU/iGPU 飽和")
+r = bench_gpu(5.0)
+if r != none {
+    print(f"  GPU: {r['gflops']:.1f} GFLOPS ({r['seconds']:.2f}秒)")
+}
+r = bench_igpu(5.0)
+if r != none {
+    print(f"  iGPU: {r['gflops']:.1f} GFLOPS ({r['seconds']:.2f}秒)")
+}
+
+// --- GPU メモリ帯域 ---
+print("\n[5] GPU メモリ帯域")
+for dev in devices {
+    if dev["backend"] == "opencl" {
+        gpu = OpenCLGPU(dev["index"])
+        name = dev["name"]
+
+        bw_kernel = """
+__kernel void bandwidth(__global float* a, __global float* b, __global float* c, const int n) {
+    int i = get_global_id(0);
+    if (i < n) { c[i] = a[i] * 2.0f + b[i]; }
+}
+"""
+        gpu.build(bw_kernel)
+        bw_kern = gpu.kernel("bandwidth")
+        bw_size = 4 * 1024 * 1024
+        buf_a = gpu.alloc(bw_size * 4)
+        buf_b = gpu.alloc(bw_size * 4)
+        buf_c = gpu.alloc(bw_size * 4)
+        bw_launches = 0
+        t0 = time.perf_counter()
+        while time.perf_counter() - t0 < 3.0 {
+            bw_kern.launch(bw_size, [buf_a, buf_b, buf_c, bw_size], sync=false)
+            bw_launches += 1
+            if bw_launches % 10 == 0 { gpu.sync() }
+        }
+        gpu.sync()
+        dt = time.perf_counter() - t0
+        total_bytes = bw_launches * bw_size * 3 * 4
+        gbps = total_bytes / dt / 1e9
+        print(f"  [{name}]: {gbps:.1f} GB/s ({bw_launches} launches)")
+    }
+}
+
+// --- FFI 速度 ---
+print("\n[6] FFI 速度")
+lib = ffi_load("msvcrt")
+lib.define("abs", ["int"], "int")
+lib.define("sqrt", ["double"], "double")
+
+t0 = time.perf_counter()
+for i in range(100000) {
+    lib.abs(-42)
+}
+dt = time.perf_counter() - t0
+print(f"  ffi abs() x100K回: {dt*1000:.1f}ms (1回 {dt*10:.4f}us)")
+
+t0 = time.perf_counter()
+for i in range(100000) {
+    lib.sqrt(2.0)
+}
+dt = time.perf_counter() - t0
+print(f"  ffi sqrt() x100K回: {dt*1000:.1f}ms (1回 {dt*10:.4f}us)")
+
+// --- FFI インラインCコンパイル ---
+print("\n[7] FFI インラインCコンパイル")
+t0 = time.perf_counter()
+try {
+    testlib = ffi_compile("""
+__declspec(dllexport) int fib(int n) {
+    if (n <= 1) return n;
+    return fib(n-1) + fib(n-2);
+}
+""")
+    compile_time = time.perf_counter() - t0
+    print(f"  Cコンパイル時間: {compile_time*1000:.1f}ms")
+
+    testlib.define("fib", ["int"], "int")
+    t0 = time.perf_counter()
+    result = testlib.fib(35)
+    dt = time.perf_counter() - t0
+    print(f"  C fib(35) = {result}: {dt*1000:.1f}ms")
+
+    // 同じ計算をSmile(Python)で
+    function fib_py(n) {
+        if n <= 1 { return n }
+        return fib_py(n - 1) + fib_py(n - 2)
+    }
+    t0 = time.perf_counter()
+    result2 = fib_py(35)
+    dt2 = time.perf_counter() - t0
+    print(f"  Smile fib(35) = {result2}: {dt2*1000:.1f}ms")
+    print(f"  FFI C vs Smile: {dt2/dt:.1f}x 高速")
+} catch e {
+    print(f"  コンパイラなし: {e}")
+}
+
+// --- compute() 配列演算 ---
+print("\n[8] compute() GPU配列演算")
+sizes = [1000, 10000, 100000, 1000000]
+for sz in sizes {
+    data = list(range(sz))
+    data = [float(x) for x in data]
+    a = compute(data)
+    t0 = time.perf_counter()
+    b = a * 3.0 + 1.0
+    dt = time.perf_counter() - t0
+    print(f"  compute({sz}) * 3 + 1: {dt*1000:.2f}ms")
+}
+
+// --- エラー解析速度 ---
+print("\n[9] エラー解析速度")
+from smile.errors import format_runtime_error
+try {
+    x = undefined_variable
+} catch e {
+    t0 = time.perf_counter()
+    for _ in range(1000) {
+        format_runtime_error(e, "x = undefined_variable", "test.smile")
+    }
+    dt = time.perf_counter() - t0
+    print(f"  エラー解析 x1000回: {dt*1000:.1f}ms (1回 {dt*1000:.3f}ms)")
+}
+
+// --- ファイルI/O ---
+print("\n[10] ファイルI/O")
+import tempfile
+import os
+tmp = tempfile.mktemp(suffix=".txt")
+content = "A" * 1000000
+
+t0 = time.perf_counter()
+for _ in range(100) {
+    write_file(tmp, content)
+}
+dt = time.perf_counter() - t0
+print(f"  write_file(1MB) x100回: {dt*1000:.1f}ms")
+
+t0 = time.perf_counter()
+for _ in range(100) {
+    read_file(tmp)
+}
+dt = time.perf_counter() - t0
+print(f"  read_file(1MB) x100回: {dt*1000:.1f}ms")
+os.unlink(tmp)
+
+print("\n============================================================")
+print("  実測完了")
+print("============================================================")
