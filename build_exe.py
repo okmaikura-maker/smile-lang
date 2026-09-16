@@ -22,6 +22,7 @@ PyInstaller.__main__.run([
     "--hidden-import=smile.gpu",
     "--hidden-import=smile.ffi",
     "--hidden-import=smile.compute",
+    "--hidden-import=smile.gui",
     "--hidden-import=lark",
     "--exclude-module=bitsandbytes",
     "--exclude-module=torch",
