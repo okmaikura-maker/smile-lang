@@ -1,0 +1,153 @@
+// Smile 電卓GUI - Win32 GDI直叩き
+
+win = window("Smile 電卓", 320, 440)
+win.show()
+
+display = "0"
+prev_val = 0
+op = ""
+new_input = true
+
+btn_labels = [
+    ["C", "BS", "%", "/"],
+    ["7", "8", "9", "x"],
+    ["4", "5", "6", "-"],
+    ["1", "2", "3", "+"],
+    ["0", "00", ".", "="],
+]
+
+btn_w = 70
+btn_h = 55
+btn_gap = 5
+start_x = 10
+start_y = 90
+
+while win.is_open() {
+    ev = win.poll()
+    while ev != none {
+        if ev.type == "keydown" and ev.key == "escape" {
+            win.close()
+        }
+        if ev.type == "click" {
+            for row in range(5) {
+                for col in range(4) {
+                    bx = start_x + col * (btn_w + btn_gap)
+                    by = start_y + row * (btn_h + btn_gap)
+                    if bx <= ev.x and ev.x < bx + btn_w and by <= ev.y and ev.y < by + btn_h {
+                        label = btn_labels[row][col]
+
+                        if label == "C" {
+                            display = "0"
+                            prev_val = 0
+                            op = ""
+                            new_input = true
+                        }
+                        if label == "BS" {
+                            if length(display) > 1 {
+                                display = display[:length(display) - 1]
+                            } else {
+                                display = "0"
+                            }
+                        }
+                        if label == "%" {
+                            display = to_string(to_float(display) / 100)
+                        }
+                        if label == "+" or label == "-" or label == "x" or label == "/" {
+                            prev_val = to_float(display)
+                            op = label
+                            new_input = true
+                        }
+                        if label == "=" {
+                            cur = to_float(display)
+                            if op == "+" {
+                                display = to_string(prev_val + cur)
+                            }
+                            if op == "-" {
+                                display = to_string(prev_val - cur)
+                            }
+                            if op == "x" {
+                                display = to_string(prev_val * cur)
+                            }
+                            if op == "/" and cur != 0 {
+                                display = to_string(prev_val / cur)
+                            }
+                            if op == "/" and cur == 0 {
+                                display = "Error"
+                            }
+                            op = ""
+                            new_input = true
+                        }
+                        if label == "." {
+                            if not contains(display, ".") {
+                                if new_input {
+                                    display = "0."
+                                    new_input = false
+                                } else {
+                                    display = display + "."
+                                }
+                            }
+                        }
+                        if is_number(label) or label == "00" {
+                            if new_input {
+                                display = label
+                                new_input = false
+                            } else {
+                                if display == "0" and label != "00" {
+                                    display = label
+                                } else {
+                                    display = display + label
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ev = win.poll()
+    }
+
+    // 背景
+    win.fill("#1a1a2e")
+
+    // ディスプレイ
+    win.rounded_rect(10, 10, 300, 65, 8, "#16213e")
+    dsize = 36
+    if length(display) > 10 {
+        dsize = 24
+    }
+    if length(display) > 15 {
+        dsize = 18
+    }
+    win.text(20, 25, display, color="white", size=dsize, bold=true)
+    if op != "" {
+        win.text(285, 45, op, color="gray", size=16)
+    }
+
+    // ボタン描画
+    for row in range(5) {
+        for col in range(4) {
+            bx = start_x + col * (btn_w + btn_gap)
+            by = start_y + row * (btn_h + btn_gap)
+            label = btn_labels[row][col]
+
+            bg = "#2c3e50"
+            if row == 0 {
+                bg = "#445566"
+            }
+            if col == 3 {
+                bg = "#e67e22"
+            }
+            if label == "=" {
+                bg = "#27ae60"
+            }
+
+            win.rounded_rect(bx, by, btn_w, btn_h, 6, bg)
+            tx = bx + btn_w / 2 - length(label) * 6
+            ty = by + (btn_h - 20) / 2
+            win.text(to_int(tx), to_int(ty), label, color="white", size=20, bold=true)
+        }
+    }
+
+    win.update()
+    win.wait(16)
+}

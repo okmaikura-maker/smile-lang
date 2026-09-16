@@ -1,0 +1,99 @@
+// Smile お絵描きツール - Win32 GDI直叩き
+import math
+
+win = window("Smile Paint", 800, 600)
+win.show()
+
+// ツール
+brush_size = 8
+current_color = "white"
+drawing = false
+palette = ["white", "red", "orange", "yellow", "green", "cyan", "blue", "purple", "magenta", "pink", "black", "gray"]
+
+// キャンバス領域
+canvas_y = 50
+
+// 背景を初期化
+win.fill("#222222")
+
+// パレットとツールバー描画用
+prev_x = 0
+prev_y = 0
+
+while win.is_open() {
+    ev = win.poll()
+    while ev != none {
+        if ev.type == "keydown" {
+            if ev.key == "escape" {
+                win.close()
+            }
+            if ev.key == "c" {
+                // キャンバスクリア
+                win.canvas.fill_rect(0, canvas_y, 800, 600 - canvas_y, "#222222")
+            }
+            if ev.key == "up" {
+                brush_size = min(brush_size + 2, 50)
+            }
+            if ev.key == "down" {
+                brush_size = max(brush_size - 2, 1)
+            }
+        }
+        if ev.type == "click" {
+            // パレット クリック
+            if ev.y < canvas_y {
+                for i in range(length(palette)) {
+                    px = 10 + i * 35
+                    if px <= ev.x and ev.x < px + 30 and 10 <= ev.y and ev.y < 40 {
+                        current_color = palette[i]
+                    }
+                }
+            } else {
+                drawing = true
+                prev_x = ev.x
+                prev_y = ev.y
+                win.circle(ev.x, ev.y, brush_size / 2, current_color)
+            }
+        }
+        if ev.type == "release" {
+            drawing = false
+        }
+        if ev.type == "move" and drawing and ev.y >= canvas_y {
+            // 前の位置から線を引く
+            win.canvas.line(prev_x, prev_y, ev.x, ev.y, current_color, brush_size)
+            prev_x = ev.x
+            prev_y = ev.y
+        }
+        if ev.type == "wheel" {
+            if ev.delta > 0 {
+                brush_size = min(brush_size + 2, 50)
+            } else {
+                brush_size = max(brush_size - 2, 1)
+            }
+        }
+        ev = win.poll()
+    }
+
+    // ツールバー (毎フレーム上書き)
+    win.canvas.fill_rect(0, 0, 800, canvas_y, "#333333")
+
+    // パレット
+    for i in range(length(palette)) {
+        px = 10 + i * 35
+        win.canvas.fill_rect(px, 10, 30, 30, palette[i])
+        if palette[i] == current_color {
+            win.canvas.stroke_rect(px - 2, 8, 34, 34, "white", 2)
+        }
+    }
+
+    // ブラシサイズ表示
+    win.text(450, 12, f"Brush: {brush_size}", color="white", size=14)
+    win.circle(530, 25, brush_size / 2, current_color)
+
+    // ヘルプ
+    win.text(580, 5, "Wheel: size", color="gray", size=11)
+    win.text(580, 20, "C: clear", color="gray", size=11)
+    win.text(580, 35, "ESC: quit", color="gray", size=11)
+
+    win.update()
+    win.wait(16)
+}

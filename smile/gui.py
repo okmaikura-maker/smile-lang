@@ -739,3 +739,259 @@ def gui_run(title, width, height, draw_fn, fps=60):
         if dt < frame_time:
             time.sleep(frame_time - dt)
     return win
+
+
+# ============================================================
+# UIウィジェット
+# ============================================================
+class Button:
+    def __init__(self, x, y, w, h, label, color="#3366cc", text_color="white", font_size=14):
+        self.x, self.y, self.w, self.h = int(x), int(y), int(w), int(h)
+        self.label = label
+        self.color = color
+        self.text_color = text_color
+        self.font_size = font_size
+        self.hover = False
+        self.pressed = False
+        self._clicked = False
+
+    def update(self, win):
+        mx, my = win.mouse_x(), win.mouse_y()
+        self.hover = self.x <= mx < self.x + self.w and self.y <= my < self.y + self.h
+        self._clicked = False
+
+    def handle(self, ev):
+        if ev and ev.type == "click" and hasattr(ev, "x"):
+            if self.x <= ev.x < self.x + self.w and self.y <= ev.y < self.y + self.h:
+                self._clicked = True
+                self.pressed = True
+        if ev and ev.type == "release":
+            self.pressed = False
+
+    def clicked(self):
+        c = self._clicked
+        self._clicked = False
+        return c
+
+    def draw(self, win):
+        r, g, b = _parse_color(self.color)
+        if self.pressed:
+            c = (max(0,r-40), max(0,g-40), max(0,b-40))
+        elif self.hover:
+            c = (min(255,r+30), min(255,g+30), min(255,b+30))
+        else:
+            c = (r, g, b)
+        win.rounded_rect(self.x, self.y, self.w, self.h, 4, c)
+        tx = self.x + self.w // 2 - len(self.label) * self.font_size // 4
+        ty = self.y + (self.h - self.font_size) // 2
+        win.text(tx, ty, self.label, color=self.text_color, size=self.font_size)
+
+
+class Slider:
+    def __init__(self, x, y, w, min_val=0, max_val=100, value=50, color="#3366cc"):
+        self.x, self.y, self.w = int(x), int(y), int(w)
+        self.min_val = min_val
+        self.max_val = max_val
+        self.value = value
+        self.color = color
+        self.dragging = False
+        self.h = 20
+        self._changed = False
+
+    def handle(self, ev):
+        if ev and ev.type == "click" and hasattr(ev, "x"):
+            if self.x <= ev.x < self.x + self.w and self.y - 5 <= ev.y < self.y + self.h + 5:
+                self.dragging = True
+                self._set_from_x(ev.x)
+        if ev and ev.type == "release":
+            self.dragging = False
+        if ev and ev.type == "move" and self.dragging and hasattr(ev, "x"):
+            self._set_from_x(ev.x)
+
+    def _set_from_x(self, mx):
+        t = max(0.0, min(1.0, (mx - self.x) / self.w))
+        new_val = self.min_val + t * (self.max_val - self.min_val)
+        if new_val != self.value:
+            self._changed = True
+        self.value = new_val
+
+    def changed(self):
+        c = self._changed
+        self._changed = False
+        return c
+
+    def draw(self, win):
+        win.rounded_rect(self.x, self.y + 7, self.w, 6, 3, "darkgray")
+        t = (self.value - self.min_val) / max(1, self.max_val - self.min_val)
+        fill_w = int(self.w * t)
+        if fill_w > 0:
+            win.rounded_rect(self.x, self.y + 7, fill_w, 6, 3, self.color)
+        knob_x = self.x + fill_w
+        win.circle(knob_x, self.y + 10, 8, self.color)
+        win.circle(knob_x, self.y + 10, 5, "white")
+
+
+class TextInput:
+    def __init__(self, x, y, w, h=28, placeholder="", font_size=14):
+        self.x, self.y, self.w, self.h = int(x), int(y), int(w), int(h)
+        self.text = ""
+        self.placeholder = placeholder
+        self.font_size = font_size
+        self.focused = False
+        self.cursor_pos = 0
+        self._blink = 0
+
+    def handle(self, ev):
+        if ev and ev.type == "click" and hasattr(ev, "x"):
+            self.focused = self.x <= ev.x < self.x + self.w and self.y <= ev.y < self.y + self.h
+        if not self.focused:
+            return
+        if ev and ev.type == "char":
+            self.text = self.text[:self.cursor_pos] + ev.char + self.text[self.cursor_pos:]
+            self.cursor_pos += 1
+        if ev and ev.type == "keydown":
+            if ev.key == "backspace" and self.cursor_pos > 0:
+                self.text = self.text[:self.cursor_pos-1] + self.text[self.cursor_pos:]
+                self.cursor_pos -= 1
+            elif ev.key == "delete" and self.cursor_pos < len(self.text):
+                self.text = self.text[:self.cursor_pos] + self.text[self.cursor_pos+1:]
+            elif ev.key == "left" and self.cursor_pos > 0:
+                self.cursor_pos -= 1
+            elif ev.key == "right" and self.cursor_pos < len(self.text):
+                self.cursor_pos += 1
+            elif ev.key == "home":
+                self.cursor_pos = 0
+            elif ev.key == "end":
+                self.cursor_pos = len(self.text)
+
+    def draw(self, win):
+        self._blink += 1
+        border = "#3366cc" if self.focused else "#888888"
+        win.rounded_rect(self.x, self.y, self.w, self.h, 3, "white")
+        win.canvas.stroke_rect(self.x, self.y, self.w, self.h, border, 2)
+        if self.text:
+            win.text(self.x + 4, self.y + (self.h - self.font_size) // 2,
+                     self.text, color="black", size=self.font_size)
+        elif self.placeholder:
+            win.text(self.x + 4, self.y + (self.h - self.font_size) // 2,
+                     self.placeholder, color="gray", size=self.font_size)
+        if self.focused and (self._blink // 30) % 2 == 0:
+            cx = self.x + 4 + self.cursor_pos * (self.font_size * 0.55)
+            win.line(int(cx), self.y + 4, int(cx), self.y + self.h - 4, "black", 1)
+
+
+class Checkbox:
+    def __init__(self, x, y, label="", checked=False, size=18, color="#3366cc"):
+        self.x, self.y = int(x), int(y)
+        self.label = label
+        self.checked = checked
+        self.size = size
+        self.color = color
+        self._toggled = False
+
+    def handle(self, ev):
+        if ev and ev.type == "click" and hasattr(ev, "x"):
+            if self.x <= ev.x < self.x + self.size + len(self.label) * 8 + 8 and \
+               self.y <= ev.y < self.y + self.size:
+                self.checked = not self.checked
+                self._toggled = True
+
+    def toggled(self):
+        t = self._toggled
+        self._toggled = False
+        return t
+
+    def draw(self, win):
+        win.rounded_rect(self.x, self.y, self.size, self.size, 3, "white")
+        win.canvas.stroke_rect(self.x, self.y, self.size, self.size, "#888888", 2)
+        if self.checked:
+            win.rounded_rect(self.x + 3, self.y + 3, self.size - 6, self.size - 6, 2, self.color)
+        if self.label:
+            win.text(self.x + self.size + 6, self.y + 1, self.label, color="black", size=self.size - 4)
+
+
+# ============================================================
+# 画像読み込み (BMP)
+# ============================================================
+def load_image(filepath):
+    """BMPファイルを読み込んでCanvasに変換"""
+    with open(filepath, "rb") as f:
+        data = f.read()
+    if data[:2] != b"BM":
+        raise ValueError("BMPファイルではありません")
+    offset = struct.unpack_from("<I", data, 10)[0]
+    w = struct.unpack_from("<i", data, 18)[0]
+    h = struct.unpack_from("<i", data, 22)[0]
+    bpp = struct.unpack_from("<H", data, 28)[0]
+    flip = h > 0
+    h = abs(h)
+    canvas = Canvas(w, h)
+    if bpp == 24:
+        row_size = (w * 3 + 3) & ~3
+        for y in range(h):
+            src_y = (h - 1 - y) if flip else y
+            for x in range(w):
+                idx = offset + src_y * row_size + x * 3
+                b, g, r = data[idx], data[idx+1], data[idx+2]
+                canvas._px(x, y, r, g, b)
+    elif bpp == 32:
+        row_size = w * 4
+        for y in range(h):
+            src_y = (h - 1 - y) if flip else y
+            for x in range(w):
+                idx = offset + src_y * row_size + x * 4
+                b, g, r, a = data[idx], data[idx+1], data[idx+2], data[idx+3]
+                canvas._px(x, y, r, g, b, a)
+    return canvas
+
+
+def save_bmp(canvas, filepath):
+    """CanvasをBMPファイルに保存"""
+    w, h = canvas.w, canvas.h
+    row_size = (w * 3 + 3) & ~3
+    img_size = row_size * h
+    file_size = 54 + img_size
+    header = struct.pack("<2sIHHI", b"BM", file_size, 0, 0, 54)
+    info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, img_size, 0, 0, 0, 0)
+    with open(filepath, "wb") as f:
+        f.write(header)
+        f.write(info)
+        for y in range(h - 1, -1, -1):
+            row = bytearray()
+            for x in range(w):
+                off = (y * w + x) * 4
+                row.append(canvas.buf[off])      # B
+                row.append(canvas.buf[off + 1])   # G
+                row.append(canvas.buf[off + 2])   # R
+            row.extend(b"\x00" * (row_size - w * 3))
+            f.write(row)
+
+
+# ============================================================
+# 音声 (Win32)
+# ============================================================
+_winmm = None
+def _get_winmm():
+    global _winmm
+    if _winmm is None:
+        _winmm = ctypes.windll.winmm
+    return _winmm
+
+SND_FILENAME = 0x00020000
+SND_ASYNC = 0x0001
+SND_SYNC = 0x0000
+
+def play_sound(filepath, sync=False):
+    """WAVファイルを再生"""
+    winmm = _get_winmm()
+    flags = SND_FILENAME | (SND_SYNC if sync else SND_ASYNC)
+    winmm.PlaySoundW(filepath, None, flags)
+
+def stop_sound():
+    """音声再生を停止"""
+    winmm = _get_winmm()
+    winmm.PlaySoundW(None, None, 0)
+
+def beep(freq=440, duration=200):
+    """ビープ音を鳴らす (周波数Hz, 時間ms)"""
+    kernel32.Beep(int(freq), int(duration))

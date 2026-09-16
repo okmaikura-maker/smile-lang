@@ -1,0 +1,143 @@
+// Smile ブロック崩し - Win32 GDI直叩き
+import math
+
+win = window("Smile ブロック崩し", 640, 480)
+win.show()
+
+// パドル
+pad_x = 270
+pad_w = 100
+pad_h = 12
+pad_y = 450
+
+// ボール
+bx = 320.0
+by = 400.0
+bvx = 3.0
+bvy = -4.0
+br = 6
+
+// ブロック生成
+blocks = []
+colors = ["red", "orange", "yellow", "green", "cyan", "blue", "purple"]
+for row in range(7) {
+    for col in range(10) {
+        blocks = push(blocks, {
+            "x": 12 + col * 62,
+            "y": 40 + row * 24,
+            "w": 58,
+            "h": 20,
+            "color": colors[row],
+            "alive": true,
+        })
+    }
+}
+
+score = 0
+lives = 3
+game_over = false
+game_clear = false
+
+while win.is_open() {
+    ev = win.poll()
+    while ev != none {
+        if ev.type == "keydown" and ev.key == "escape" {
+            win.close()
+        }
+        if ev.type == "move" {
+            pad_x = clamp(ev.x - pad_w / 2, 0, 640 - pad_w)
+        }
+        ev = win.poll()
+    }
+
+    // 背景
+    win.fill("#0a0a1a")
+
+    if not game_over and not game_clear {
+        // ボール移動
+        bx = bx + bvx
+        by = by + bvy
+
+        // 壁バウンド
+        if bx - br < 0 or bx + br > 640 {
+            bvx = -bvx
+            bx = clamp(bx, br, 640 - br)
+        }
+        if by - br < 0 {
+            bvy = -bvy
+            by = br
+        }
+
+        // 落下
+        if by > 480 {
+            lives = lives - 1
+            if lives <= 0 {
+                game_over = true
+            } else {
+                bx = 320.0
+                by = 400.0
+                bvx = 3.0
+                bvy = -4.0
+            }
+        }
+
+        // パドル衝突
+        if by + br >= pad_y and by - br <= pad_y + pad_h {
+            if bx >= pad_x and bx <= pad_x + pad_w {
+                bvy = -abs(bvy)
+                offset = (bx - (pad_x + pad_w / 2)) / (pad_w / 2)
+                bvx = offset * 5
+                by = pad_y - br
+            }
+        }
+
+        // ブロック衝突
+        alive_count = 0
+        for blk in blocks {
+            if blk["alive"] {
+                alive_count = alive_count + 1
+                if bx + br > blk["x"] and bx - br < blk["x"] + blk["w"] {
+                    if by + br > blk["y"] and by - br < blk["y"] + blk["h"] {
+                        blk["alive"] = false
+                        bvy = -bvy
+                        score = score + 10
+                    }
+                }
+            }
+        }
+        if alive_count == 0 {
+            game_clear = true
+        }
+    }
+
+    // ブロック描画
+    for blk in blocks {
+        if blk["alive"] {
+            win.rounded_rect(blk["x"], blk["y"], blk["w"], blk["h"], 3, blk["color"])
+        }
+    }
+
+    // パドル
+    win.rounded_rect(to_int(pad_x), pad_y, pad_w, pad_h, 5, "white")
+
+    // ボール
+    if not game_over {
+        win.circle(to_int(bx), to_int(by), br, "white")
+    }
+
+    // HUD
+    win.text(10, 8, f"Score: {score}", color="white", size=16, bold=true)
+    win.text(520, 8, f"Lives: {lives}", color="white", size=16)
+
+    if game_over {
+        win.text(220, 220, "GAME OVER", color="red", size=36, bold=true)
+        win.text(230, 270, f"Score: {score}", color="white", size=20)
+    }
+    if game_clear {
+        win.text(200, 220, "CLEAR!", color="gold", size=40, bold=true)
+        win.text(230, 270, f"Score: {score}", color="white", size=20)
+    }
+
+    win.update()
+    win.wait(16)
+}

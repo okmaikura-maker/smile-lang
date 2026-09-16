@@ -1191,6 +1191,110 @@ def gui_run(title, width, height, draw_fn, fps=60):
     from smile.gui import gui_run as _gui_run
     return _gui_run(title, width, height, draw_fn, fps)
 
+def button(x, y, w, h, label, **kw):
+    from smile.gui import Button
+    return Button(x, y, w, h, label, **kw)
+
+def slider(x, y, w, **kw):
+    from smile.gui import Slider
+    return Slider(x, y, w, **kw)
+
+def text_input(x, y, w, **kw):
+    from smile.gui import TextInput
+    return TextInput(x, y, w, **kw)
+
+def checkbox(x, y, label="", **kw):
+    from smile.gui import Checkbox
+    return Checkbox(x, y, label, **kw)
+
+def load_image(filepath):
+    from smile.gui import load_image as _li
+    return _li(filepath)
+
+def save_bmp(canvas, filepath):
+    from smile.gui import save_bmp as _sb
+    return _sb(canvas, filepath)
+
+def play_sound(filepath, sync=False):
+    from smile.gui import play_sound as _ps
+    return _ps(filepath, sync)
+
+def stop_sound():
+    from smile.gui import stop_sound as _ss
+    return _ss()
+
+def beep(freq=440, duration=200):
+    from smile.gui import beep as _b
+    return _b(freq, duration)
+
+# ============================================================
+# ネットワーク - HTTPサーバー / WebSocket
+# ============================================================
+def http_serve(handler_fn, port=8080):
+    """簡易HTTPサーバー起動 (バックグラウンド)"""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import threading
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            result = handler_fn(self.path, "GET", {})
+            if isinstance(result, dict):
+                status = result.get("status", 200)
+                body = result.get("body", "")
+                content_type = result.get("content_type", "text/html; charset=utf-8")
+            else:
+                status, body, content_type = 200, str(result), "text/html; charset=utf-8"
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.end_headers()
+            self.wfile.write(body.encode("utf-8") if isinstance(body, str) else body)
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", 0))
+            post_data = self.rfile.read(length).decode("utf-8") if length else ""
+            result = handler_fn(self.path, "POST", {"body": post_data})
+            if isinstance(result, dict):
+                status = result.get("status", 200)
+                body = result.get("body", "")
+                content_type = result.get("content_type", "text/html; charset=utf-8")
+            else:
+                status, body, content_type = 200, str(result), "text/html; charset=utf-8"
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.end_headers()
+            self.wfile.write(body.encode("utf-8") if isinstance(body, str) else body)
+        def log_message(self, format, *args):
+            pass
+    server = HTTPServer(("", port), H)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    return server
+
+def http_stop(server):
+    """HTTPサーバー停止"""
+    server.shutdown()
+
+def ws_serve(on_message, port=8765):
+    """簡易WebSocketサーバー (asyncio使用)"""
+    import asyncio, threading, json
+    clients = set()
+    async def handler(ws):
+        clients.add(ws)
+        try:
+            async for msg in ws:
+                reply = on_message(msg, ws)
+                if reply is not None:
+                    await ws.send(str(reply))
+        finally:
+            clients.discard(ws)
+    async def main():
+        import websockets
+        async with websockets.serve(handler, "", port):
+            await asyncio.Future()
+    def run():
+        asyncio.run(main())
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    return {"port": port, "clients": clients}
+
 # ============================================================
 # 全エクスポート
 # ============================================================
