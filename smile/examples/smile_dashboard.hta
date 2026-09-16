@@ -1,5 +1,6 @@
-<html>
+﻿<html>
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Smile言語 v0.5.0 機能一覧</title>
 <HTA:APPLICATION
   ID="SmileDashboard"
@@ -24,7 +25,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: "Yu Gothic UI", "Meiryo", sans-serif;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  background: #000000;
   color: #e0e0e0;
   min-height: 100%;
   padding: 20px;
@@ -173,7 +174,13 @@ function toggle(id) {
 }
 function runSmile(file) {
   var shell = new ActiveXObject("WScript.Shell");
-  shell.Run('cmd /c smile run "' + file + '"', 1, false);
+  var fso = new ActiveXObject("Scripting.FileSystemObject");
+  var htaPath = document.location.pathname.replace(/\//g, "\\");
+  if (htaPath.charAt(0) == "\\") htaPath = htaPath.substr(1);
+  var htaDir = fso.GetParentFolderName(htaPath);
+  var projDir = fso.GetParentFolderName(fso.GetParentFolderName(htaDir));
+  shell.CurrentDirectory = projDir;
+  shell.Run('cmd /k python -m smile run "' + file + '"', 1, false);
 }
 </script>
 </head>
