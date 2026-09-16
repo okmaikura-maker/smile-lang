@@ -1181,6 +1181,17 @@ __kernel void saturate(__global float* out, const int iters) {
     return {"name": name, "gflops": gflops, "launches": launches, "seconds": dt}
 
 # ============================================================
+# GUI - Win32 GDI直叩きキャンバス (遅延import)
+# ============================================================
+def window(title="Smile", width=800, height=600):
+    from smile.gui import Window
+    return Window(title, width, height)
+
+def gui_run(title, width, height, draw_fn, fps=60):
+    from smile.gui import gui_run as _gui_run
+    return _gui_run(title, width, height, draw_fn, fps)
+
+# ============================================================
 # 全エクスポート
 # ============================================================
 def _get_all_exports():

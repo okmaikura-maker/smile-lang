@@ -1,0 +1,123 @@
+// Smile v0.5.0 フル機能デモ
+import time
+import random
+import math
+
+print(color("=" * 50, "cyan"))
+print(color("  Smile v0.5.0 デモ - 全部import不要", "bold"))
+print(color("=" * 50, "cyan"))
+
+// ─── 1. ストップウォッチで全体計測 ───
+sw = stopwatch()
+
+// ─── 2. SQLiteでデータ生成 ───
+print(color("\n▶ SQLite データベース", "yellow"))
+db = db_open()
+db_exec(db, "CREATE TABLE scores (name TEXT, subject TEXT, score INT)")
+
+students = ["太郎", "花子", "次郎", "美咲", "健太", "さくら", "翔", "凛"]
+subjects = ["数学", "英語", "理科", "国語", "社会"]
+
+for s in students {
+    for subj in subjects {
+        score = random_int(40, 100)
+        db_exec(db, "INSERT INTO scores VALUES (?, ?, ?)", [s, subj, score])
+    }
+}
+
+top = db_query(db, "SELECT name, AVG(score) as avg FROM scores GROUP BY name ORDER BY avg DESC LIMIT 5")
+print("  成績TOP5:")
+for i in range(length(top)) {
+    r = top[i]
+    bar = "█" * to_int(r["avg"] / 5)
+    print(f"    {i+1}. {r['name']}  {r['avg']:.1f}点  {bar}")
+}
+
+// ─── 3. 各教科の統計 ───
+print(color("\n▶ 教科別統計", "yellow"))
+headers = ["教科", "平均", "中央値", "偏差", "P95"]
+rows = []
+for subj in subjects {
+    data = db_query(db, "SELECT score FROM scores WHERE subject = ?", [subj])
+    vals = [d["score"] for d in data]
+    rows = push(rows, [subj, f"{mean(vals):.1f}", f"{median(vals):.1f}", f"{stdev(vals):.1f}", f"{percentile(vals, 95):.0f}"])
+}
+print(table(headers, rows))
+db_close(db)
+
+// ─── 4. 暗号・セキュリティ ───
+print(color("\n▶ セキュリティ", "yellow"))
+token = random_token(16)
+print(f"  APIトークン: {token}")
+secret = "my_secret_key"
+sig = hmac_sha256(secret, "重要なデータ")
+print(f"  HMAC署名:    {sig}")
+print(f"  SHA256:      {hash_sha256('Smile言語')}")
+print(f"  UUID:        {uuid4()}")
+
+// ─── 5. 関数型プログラミング ───
+print(color("\n▶ 関数型プログラミング", "yellow"))
+
+double = |x| x * 2
+add10 = |x| x + 10
+square = |x| x ** 2
+
+transform = compose(square, add10, double)
+print(f"  compose(square, add10, double)(3) = {transform(3)}")
+print(f"  つまり (3*2 + 10)² = {transform(3)}")
+
+pipeline = pipe_fn(double, add10, square)
+print(f"  pipe_fn(double, add10, double)(3) = {pipeline(3)}")
+
+analyze = juxt(mean, median, stdev)
+sample = [10, 20, 30, 40, 50]
+print(f"  juxt(mean, median, stdev)({sample}) = {analyze(sample)}")
+
+// ─── 6. データ圧縮 ───
+print(color("\n▶ 圧縮", "yellow"))
+original = repeat("Smile言語は最高！ ", 5000)
+size_before = length(to_bytes(original))
+compressed = compress(original)
+size_after = length(compressed)
+ratio = size_after / size_before * 100
+print(f"  {size_before:,} bytes → {size_after:,} bytes ({ratio:.1f}%)")
+
+// ─── 7. バリデーション ───
+print(color("\n▶ バリデーション", "yellow"))
+checks = [
+    ["hello@smile.dev", is_email("hello@smile.dev")],
+    ["not-an-email", is_email("not-an-email")],
+    ["https://github.com", is_url("https://github.com")],
+    ["192.168.0.1", is_ip("192.168.0.1")],
+    ["999.0.0.1", is_ip("999.0.0.1")],
+]
+for c in checks {
+    mark = color("✓", "green") if c[1] else color("✗", "red")
+    print(f"  {mark} {c[0]}")
+}
+
+// ─── 8. プログレスバー ───
+print(color("\n▶ プログレスバー", "yellow"))
+for i in [0, 25, 50, 75, 100] {
+    print(f"  {progress_bar(i, 100, 30, 'DL ')}")
+}
+
+// ─── 9. ネットワーク情報 ───
+print(color("\n▶ ネットワーク", "yellow"))
+print(f"  ホスト名: {hostname()}")
+print(f"  IP: {ip_address()}")
+print(f"  Port 80 (localhost): {'open' if port_open('localhost', 80, 0.1) else 'closed'}")
+print(f"  Port 443 (localhost): {'open' if port_open('localhost', 443, 0.1) else 'closed'}")
+
+// ─── 10. 日時 ───
+print(color("\n▶ 日時", "yellow"))
+print(f"  今日: {today()}")
+print(f"  時刻: {now_string()}")
+print(f"  UNIX: {timestamp()}")
+
+// ─── 結果 ───
+elapsed = sw.elapsed()
+print(color(f"\n{'=' * 50}", "cyan"))
+print(color(f"  全機能デモ完了: {elapsed:.3f}秒", "bold"))
+print(color(f"  すべてimport不要、標準関数のみ", "green"))
+print(color(f"{'=' * 50}", "cyan"))

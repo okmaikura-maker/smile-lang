@@ -1,0 +1,101 @@
+// Smile GUI デモ - Win32 GDI直叩きキャンバス
+import time
+import math
+
+win = window("Smile GUI Demo", 800, 600)
+win.show()
+
+balls = []
+for i in range(8) {
+    balls = push(balls, {
+        "x": random_float(100, 700),
+        "y": random_float(100, 500),
+        "vx": random_float(-3, 3),
+        "vy": random_float(-3, 3),
+        "r": random_int(15, 40),
+        "color": random_choice(["red", "blue", "green", "orange", "purple", "cyan", "coral", "gold"]),
+    })
+}
+
+clicks = []
+frame = 0
+
+while win.is_open() {
+    ev = win.poll()
+    while ev != none {
+        if ev.type == "click" {
+            clicks = push(clicks, {"x": ev.x, "y": ev.y, "t": frame})
+        }
+        if ev.type == "keydown" and ev.key == "escape" {
+            win.close()
+        }
+        ev = win.poll()
+    }
+
+    // 背景
+    win.gradient(0, 0, 800, 600, "#1a1a2e", "#16213e")
+
+    // グリッド
+    for gx in range(0, 800, 40) {
+        win.line(gx, 0, gx, 600, "#1e2d4a", 1)
+    }
+    for gy in range(0, 600, 40) {
+        win.line(0, gy, 800, gy, "#1e2d4a", 1)
+    }
+
+    // ボール物理
+    for b in balls {
+        b["x"] = b["x"] + b["vx"]
+        b["y"] = b["y"] + b["vy"]
+        if b["x"] - b["r"] < 0 or b["x"] + b["r"] > 800 {
+            b["vx"] = -b["vx"]
+        }
+        if b["y"] - b["r"] < 0 or b["y"] + b["r"] > 600 {
+            b["vy"] = -b["vy"]
+        }
+        b["x"] = clamp(b["x"], b["r"], 800 - b["r"])
+        b["y"] = clamp(b["y"], b["r"], 600 - b["r"])
+    }
+
+    // ボール描画
+    for b in balls {
+        win.circle(b["x"], b["y"], b["r"], b["color"])
+        win.circle(b["x"] - b["r"] * 0.3, b["y"] - b["r"] * 0.3, b["r"] * 0.2, "white")
+    }
+
+    // クリックエフェクト
+    new_clicks = []
+    for c in clicks {
+        age = frame - c["t"]
+        if age < 30 {
+            r = age * 3
+            win.circle(c["x"], c["y"], r, "skyblue", false)
+            new_clicks = push(new_clicks, c)
+        }
+    }
+    clicks = new_clicks
+
+    // サイン波
+    for px in range(800) {
+        py = 300 + to_int(math.sin((px + frame * 2) * 0.02) * 50)
+        win.pixel(px, py, "lime")
+        py2 = 300 + to_int(math.cos((px + frame * 3) * 0.015) * 40)
+        win.pixel(px, py2, "magenta")
+    }
+
+    // HUD
+    win.rounded_rect(10, 10, 250, 90, 8, "#222233")
+    win.text(20, 15, "Smile GUI v0.5.0", color="white", size=20, bold=true)
+    win.text(20, 42, f"Frame: {frame}  FPS: {win.fps():.0f}", color="lightgray", size=14)
+    win.text(20, 62, f"Balls: {length(balls)}  Click to ripple", color="gray", size=13)
+
+    // マウス座標
+    mx = win.mouse_x()
+    my = win.mouse_y()
+    win.circle(mx, my, 4, "white", false)
+    win.text(mx + 10, my - 5, f"({mx},{my})", color="white", size=11)
+
+    win.update()
+    win.wait(16)
+    frame += 1
+}
