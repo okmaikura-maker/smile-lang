@@ -1,0 +1,398 @@
+﻿<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Smile言語 v0.5.0 機能一覧</title>
+<HTA:APPLICATION
+  ID="SmileDashboard"
+  APPLICATIONNAME="Smile Dashboard"
+  BORDER="thin"
+  BORDERSTYLE="normal"
+  CAPTION="yes"
+  ICON=""
+  MAXIMIZEBUTTON="yes"
+  MINIMIZEBUTTON="yes"
+  SHOWINTASKBAR="yes"
+  SINGLEINSTANCE="yes"
+  SYSMENU="yes"
+  WINDOWSTATE="normal"
+  SCROLL="auto"
+  NAVIGABLE="yes"
+  CONTEXTMENU="yes"
+  INNERBORDER="no"
+  SELECTION="yes"
+/>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+  background: #000000;
+  color: #e0e0e0;
+  min-height: 100%;
+  padding: 20px;
+}
+h1 {
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+  -webkit-background-clip: text;
+  color: #00d2ff;
+}
+.subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.stat-card {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 15px 25px;
+  text-align: center;
+  min-width: 120px;
+}
+.stat-card .num {
+  font-size: 32px;
+  font-weight: bold;
+  color: #00d2ff;
+}
+.stat-card .label {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+.category {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+.category-header {
+  background: rgba(255,255,255,0.08);
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.category-header:hover { background: rgba(255,255,255,0.12); }
+.category-header .badge {
+  background: #3a7bd5;
+  color: white;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.category-body { padding: 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  background: rgba(255,255,255,0.06);
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #aaa;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 7px 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+tr:hover td { background: rgba(255,255,255,0.04); }
+.fn { color: #00d2ff; font-family: Consolas, monospace; font-weight: bold; }
+.tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 4px;
+}
+.tag-new { background: #27ae60; color: white; }
+.tag-gui { background: #e67e22; color: white; }
+.tag-net { background: #8e44ad; color: white; }
+.tag-sound { background: #c0392b; color: white; }
+
+.vs-python {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 15px;
+}
+.vs-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.vs-row:last-child { border-bottom: none; }
+.vs-item { flex: 1; }
+.vs-smile { color: #00d2ff; font-weight: bold; }
+.vs-python-col { color: #f1c40f; }
+.vs-bar {
+  height: 6px;
+  background: #00d2ff;
+  border-radius: 3px;
+  margin-top: 3px;
+}
+.vs-bar-py {
+  height: 6px;
+  background: #f1c40f;
+  border-radius: 3px;
+  margin-top: 3px;
+}
+.footer {
+  text-align: center;
+  color: #555;
+  font-size: 11px;
+  margin-top: 20px;
+  padding-bottom: 20px;
+}
+a { color: #3a7bd5; text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+<script>
+function toggle(id) {
+  var el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+function runSmile(file) {
+  var shell = new ActiveXObject("WScript.Shell");
+  var fso = new ActiveXObject("Scripting.FileSystemObject");
+  var htaPath = document.location.pathname.replace(/\//g, "\\");
+  if (htaPath.charAt(0) == "\\") htaPath = htaPath.substr(1);
+  var htaDir = fso.GetParentFolderName(htaPath);
+  var projDir = fso.GetParentFolderName(fso.GetParentFolderName(htaDir));
+  shell.CurrentDirectory = projDir;
+  shell.Run('cmd /k python -m smile run "' + file + '"', 1, false);
+}
+</script>
+</head>
+<body>
+
+<h1>⚡ Smile言語 v0.5.0</h1>
+<p class="subtitle">Python完全超越 — import不要、日本語エラー、Win32 GDI GUI、80+標準関数</p>
+
+<div class="stats">
+  <div class="stat-card"><div class="num">80+</div><div class="label">標準関数</div></div>
+  <div class="stat-card"><div class="num">0</div><div class="label">import必要数</div></div>
+  <div class="stat-card"><div class="num">2353x</div><div class="label">キャッシュ速度</div></div>
+  <div class="stat-card"><div class="num">GDI</div><div class="label">GUI (直叩き)</div></div>
+  <div class="stat-card"><div class="num">Win32</div><div class="label">音声再生</div></div>
+  <div class="stat-card"><div class="num">HTTP</div><div class="label">サーバー内蔵</div></div>
+</div>
+
+<!-- ===== デモ起動 ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('demos')">
+    🎮 デモ起動 <span class="badge">5 demos</span>
+  </div>
+  <div class="category-body" id="demos">
+    <table>
+      <tr><th>デモ</th><th>内容</th><th>起動</th></tr>
+      <tr><td>gui_demo.smile</td><td>バウンスボール + サイン波 + HUD</td>
+        <td><button onclick="runSmile('smile\\examples\\gui_demo.smile')">▶ 実行</button></td></tr>
+      <tr><td>game_breakout.smile</td><td>ブロック崩しゲーム</td>
+        <td><button onclick="runSmile('smile\\examples\\game_breakout.smile')">▶ 実行</button></td></tr>
+      <tr><td>paint.smile</td><td>お絵描きツール</td>
+        <td><button onclick="runSmile('smile\\examples\\paint.smile')">▶ 実行</button></td></tr>
+      <tr><td>calculator.smile</td><td>電卓GUI</td>
+        <td><button onclick="runSmile('smile\\examples\\calculator.smile')">▶ 実行</button></td></tr>
+      <tr><td>demo_v05.smile</td><td>全機能デモ (CUI)</td>
+        <td><button onclick="runSmile('smile\\examples\\demo_v05.smile')">▶ 実行</button></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== GUI ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('gui')">
+    🖼️ GUI (Win32 GDI直叩き) <span class="badge">20+ API</span>
+  </div>
+  <div class="category-body" id="gui">
+    <table>
+      <tr><th>関数</th><th>説明</th><th>タグ</th></tr>
+      <tr><td class="fn">window(title, w, h)</td><td>ウィンドウ作成</td><td><span class="tag tag-gui">GUI</span></td></tr>
+      <tr><td class="fn">win.show() / hide() / close()</td><td>表示制御</td><td></td></tr>
+      <tr><td class="fn">win.fill(color)</td><td>背景クリア</td><td></td></tr>
+      <tr><td class="fn">win.rect(x,y,w,h,color)</td><td>矩形描画</td><td></td></tr>
+      <tr><td class="fn">win.rounded_rect(...)</td><td>角丸矩形</td><td></td></tr>
+      <tr><td class="fn">win.circle(cx,cy,r,color)</td><td>円描画</td><td></td></tr>
+      <tr><td class="fn">win.line(x0,y0,x1,y1,color)</td><td>線描画 (Bresenham)</td><td></td></tr>
+      <tr><td class="fn">win.triangle(...)</td><td>三角形 (scanline)</td><td></td></tr>
+      <tr><td class="fn">win.gradient(x,y,w,h,c1,c2)</td><td>グラデーション</td><td></td></tr>
+      <tr><td class="fn">win.pixel(x,y,color)</td><td>ピクセル描画</td><td></td></tr>
+      <tr><td class="fn">win.text(x,y,s,color,size)</td><td>テキスト描画 (GDI)</td><td></td></tr>
+      <tr><td class="fn">win.poll()</td><td>イベント取得</td><td></td></tr>
+      <tr><td class="fn">win.update()</td><td>画面更新 (BitBlt)</td><td></td></tr>
+      <tr><td class="fn">win.fps()</td><td>FPS取得</td><td></td></tr>
+      <tr><td class="fn">button(x,y,w,h,label)</td><td>ボタンウィジェット</td><td><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">slider(x,y,w,min,max)</td><td>スライダーウィジェット</td><td><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">text_input(x,y,w)</td><td>テキスト入力欄</td><td><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">checkbox(x,y,label)</td><td>チェックボックス</td><td><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">load_image(filepath)</td><td>BMP読み込み→Canvas</td><td><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">save_bmp(canvas, path)</td><td>Canvas→BMP保存</td><td><span class="tag tag-new">NEW</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 音声 ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('sound')">
+    🔊 音声 (Win32) <span class="badge">3 関数</span>
+  </div>
+  <div class="category-body" id="sound">
+    <table>
+      <tr><th>関数</th><th>説明</th><th>タグ</th></tr>
+      <tr><td class="fn">play_sound(filepath)</td><td>WAVファイル再生</td><td><span class="tag tag-sound">SOUND</span></td></tr>
+      <tr><td class="fn">stop_sound()</td><td>再生停止</td><td><span class="tag tag-sound">SOUND</span></td></tr>
+      <tr><td class="fn">beep(freq, duration)</td><td>ビープ音 (Hz, ms)</td><td><span class="tag tag-sound">SOUND</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== ネットワーク ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('network')">
+    🌐 ネットワーク <span class="badge">7+ 関数</span>
+  </div>
+  <div class="category-body" id="network">
+    <table>
+      <tr><th>関数</th><th>説明</th><th>タグ</th></tr>
+      <tr><td class="fn">http_serve(handler, port)</td><td>HTTPサーバー起動</td><td><span class="tag tag-net">NET</span><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">http_stop(server)</td><td>サーバー停止</td><td><span class="tag tag-net">NET</span><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">ws_serve(on_msg, port)</td><td>WebSocketサーバー</td><td><span class="tag tag-net">NET</span><span class="tag tag-new">NEW</span></td></tr>
+      <tr><td class="fn">download(url, path)</td><td>ファイルDL</td><td><span class="tag tag-net">NET</span></td></tr>
+      <tr><td class="fn">ip_address()</td><td>自分のIP</td><td></td></tr>
+      <tr><td class="fn">hostname()</td><td>ホスト名</td><td></td></tr>
+      <tr><td class="fn">port_open(host, port)</td><td>ポート疎通確認</td><td></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== DB / Crypto ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('dbcrypto')">
+    🗃️ DB / セキュリティ <span class="badge">11 関数</span>
+  </div>
+  <div class="category-body" id="dbcrypto">
+    <table>
+      <tr><th>関数</th><th>説明</th></tr>
+      <tr><td class="fn">db_open() / db_close(db)</td><td>SQLiteメモリDB</td></tr>
+      <tr><td class="fn">db_exec(db, sql, params)</td><td>SQL実行</td></tr>
+      <tr><td class="fn">db_query(db, sql, params)</td><td>クエリ→辞書リスト</td></tr>
+      <tr><td class="fn">uuid4() / uuid_short()</td><td>UUID生成</td></tr>
+      <tr><td class="fn">hmac_sha256(key, msg)</td><td>HMAC署名</td></tr>
+      <tr><td class="fn">hash_sha256(data)</td><td>SHA256ハッシュ</td></tr>
+      <tr><td class="fn">random_token(n)</td><td>セキュアトークン</td></tr>
+      <tr><td class="fn">random_bytes(n) / random_hex(n)</td><td>乱数バイト列</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 関数型 ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('fp')">
+    λ 関数型プログラミング <span class="badge">6 関数</span>
+  </div>
+  <div class="category-body" id="fp">
+    <table>
+      <tr><th>関数</th><th>説明</th></tr>
+      <tr><td class="fn">compose(f, g, ...)</td><td>関数合成 (右→左)</td></tr>
+      <tr><td class="fn">pipe_fn(f, g, ...)</td><td>パイプライン (左→右)</td></tr>
+      <tr><td class="fn">partial(f, *args)</td><td>部分適用</td></tr>
+      <tr><td class="fn">identity(x)</td><td>恒等関数</td></tr>
+      <tr><td class="fn">constantly(x)</td><td>定数関数</td></tr>
+      <tr><td class="fn">juxt(f, g, ...)</td><td>並列適用</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 統計 / 圧縮 / デコレータ ===== -->
+<div class="category">
+  <div class="category-header" onclick="toggle('misc')">
+    📊 統計 / 圧縮 / デコレータ / バリデーション <span class="badge">20+ 関数</span>
+  </div>
+  <div class="category-body" id="misc">
+    <table>
+      <tr><th>関数</th><th>説明</th></tr>
+      <tr><td class="fn">mean / median / stdev / percentile</td><td>統計関数</td></tr>
+      <tr><td class="fn">histogram(data, bins)</td><td>ヒストグラム</td></tr>
+      <tr><td class="fn">compress / decompress</td><td>zlib圧縮</td></tr>
+      <tr><td class="fn">gzip_compress / gzip_decompress</td><td>gzip圧縮</td></tr>
+      <tr><td class="fn">cache(f)</td><td>結果キャッシュ</td></tr>
+      <tr><td class="fn">retry(f, n, delay)</td><td>リトライ</td></tr>
+      <tr><td class="fn">throttle(f, interval)</td><td>スロットル</td></tr>
+      <tr><td class="fn">once(f)</td><td>1回だけ実行</td></tr>
+      <tr><td class="fn">is_email / is_url / is_ip / is_json</td><td>バリデーション</td></tr>
+      <tr><td class="fn">table(headers, rows)</td><td>テーブル表示</td></tr>
+      <tr><td class="fn">progress_bar(cur, max, width)</td><td>プログレスバー</td></tr>
+      <tr><td class="fn">color(text, color)</td><td>ANSI色付き文字</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== vs Python ===== -->
+<div class="vs-python">
+  <div class="category-header" style="background:none; padding:0 0 12px 0;">
+    ⚔️ Smile vs Python
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">標準関数</div>
+    <div class="vs-item vs-smile">80+ (import不要) <div class="vs-bar" style="width:90%"></div></div>
+    <div class="vs-item vs-python-col">import必須 <div class="vs-bar-py" style="width:40%"></div></div>
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">GUI</div>
+    <div class="vs-item vs-smile">Win32 GDI直叩き <div class="vs-bar" style="width:85%"></div></div>
+    <div class="vs-item vs-python-col">tkinter (遅い) <div class="vs-bar-py" style="width:45%"></div></div>
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">DB</div>
+    <div class="vs-item vs-smile">db_open()で即使える <div class="vs-bar" style="width:95%"></div></div>
+    <div class="vs-item vs-python-col">import sqlite3必要 <div class="vs-bar-py" style="width:50%"></div></div>
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">エラー</div>
+    <div class="vs-item vs-smile">日本語で原因+修正方法 <div class="vs-bar" style="width:95%"></div></div>
+    <div class="vs-item vs-python-col">英語Traceback <div class="vs-bar-py" style="width:30%"></div></div>
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">音声</div>
+    <div class="vs-item vs-smile">play_sound() 1行 <div class="vs-bar" style="width:90%"></div></div>
+    <div class="vs-item vs-python-col">pip install必要 <div class="vs-bar-py" style="width:25%"></div></div>
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">HTTPサーバー</div>
+    <div class="vs-item vs-smile">http_serve() 1行 <div class="vs-bar" style="width:88%"></div></div>
+    <div class="vs-item vs-python-col">10+行必要 <div class="vs-bar-py" style="width:35%"></div></div>
+  </div>
+  <div class="vs-row">
+    <div class="vs-item">コンパイル速度</div>
+    <div class="vs-item vs-smile">キャッシュで2353x高速 <div class="vs-bar" style="width:98%"></div></div>
+    <div class="vs-item vs-python-col">毎回パース <div class="vs-bar-py" style="width:20%"></div></div>
+  </div>
+</div>
+
+<div class="footer">
+  Smile言語 v0.5.0 — <a href="https://github.com/okmaikura-maker/smile-lang">GitHub</a> — Built with ⚡
+</div>
+
+</body>
+</html>
