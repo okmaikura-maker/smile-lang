@@ -124,6 +124,9 @@ class CodeGen:
     def gen_le(self, n): return self._binop(n, "<=")
     def gen_ge(self, n): return self._binop(n, ">=")
     def gen_in_op(self, n): return self._binop(n, "in")
+    def gen_not_in_op(self, n): return self._binop(n, "not in")
+    def gen_is_op(self, n): return self._binop(n, "is")
+    def gen_is_not_op(self, n): return self._binop(n, "is not")
     def gen_or_op(self, n): return self._binop(n, "or")
     def gen_and_op(self, n): return self._binop(n, "and")
     def gen_not_op(self, n): return f"(not {self.gen(n.children[0])})"
@@ -246,10 +249,36 @@ class CodeGen:
                 exprs.append(self.gen(c))
         return f"{self.ind()}{', '.join(names)} = {', '.join(exprs)}"
 
-    def gen_aug_add(self, n): return f"{self.ind()}{n.children[0]} += {self.gen(n.children[1])}"
-    def gen_aug_sub(self, n): return f"{self.ind()}{n.children[0]} -= {self.gen(n.children[1])}"
-    def gen_aug_mul(self, n): return f"{self.ind()}{n.children[0]} *= {self.gen(n.children[1])}"
-    def gen_aug_div(self, n): return f"{self.ind()}{n.children[0]} /= {self.gen(n.children[1])}"
+    # ── 複合代入の左辺 (変数 / obj.attr / obj[key]) ──
+    def gen_aug_name(self, n): return str(n.children[0])
+    def gen_aug_attr(self, n): return f"{self.gen(n.children[0])}.{n.children[1]}"
+    def gen_aug_index(self, n): return f"{self.gen(n.children[0])}[{self.gen(n.children[1])}]"
+
+    def _aug(self, n, op):
+        target = n.children[0]
+        lhs = str(target) if isinstance(target, Token) else self.gen(target)
+        return f"{self.ind()}{lhs} {op} {self.gen(n.children[1])}"
+
+    def gen_aug_add(self, n): return self._aug(n, "+=")
+    def gen_aug_sub(self, n): return self._aug(n, "-=")
+    def gen_aug_mul(self, n): return self._aug(n, "*=")
+    def gen_aug_div(self, n): return self._aug(n, "/=")
+    def gen_aug_floordiv(self, n): return self._aug(n, "//=")
+    def gen_aug_mod(self, n): return self._aug(n, "%=")
+    def gen_aug_pow(self, n): return self._aug(n, "**=")
+
+    # ── global / nonlocal / del / pass ──
+    def gen_global_stmt(self, n):
+        return f"{self.ind()}global {', '.join(str(c) for c in n.children)}"
+
+    def gen_nonlocal_stmt(self, n):
+        return f"{self.ind()}nonlocal {', '.join(str(c) for c in n.children)}"
+
+    def gen_del_stmt(self, n):
+        return f"{self.ind()}del {', '.join(self.gen(c) for c in n.children)}"
+
+    def gen_pass_stmt(self, n):
+        return f"{self.ind()}pass"
 
     def gen_expr_stmt(self, node):
         return f"{self.ind()}{self.gen(node.children[0])}"

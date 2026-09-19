@@ -45,8 +45,8 @@ while win.is_open() {
 
     // ボール物理
     for b in balls {
-        b["x"] = b["x"] + b["vx"]
-        b["y"] = b["y"] + b["vy"]
+        b["x"] += b["vx"]
+        b["y"] += b["vy"]
         if b["x"] - b["r"] < 0 or b["x"] + b["r"] > 800 {
             b["vx"] = -b["vx"]
         }

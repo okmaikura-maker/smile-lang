@@ -1,6 +1,6 @@
 // Smile Language Grammar v0.3
 
-start: (_NL* statement)* _NL*
+start: (_SEP* statement)* _SEP*
 
 ?statement: assignment
           | expr_stmt
@@ -19,15 +19,27 @@ start: (_NL* statement)* _NL*
           | throw_stmt
           | multi_assign
           | match_stmt
+          | global_stmt
+          | nonlocal_stmt
+          | del_stmt
+          | pass_stmt
 
 // Assignments
 assignment: NAME "=" expr                    -> assign
           | expr "." NAME "=" expr           -> attr_assign
           | expr "[" expr "]" "=" expr       -> index_assign
-          | NAME "+=" expr                   -> aug_add
-          | NAME "-=" expr                   -> aug_sub
-          | NAME "*=" expr                   -> aug_mul
-          | NAME "/=" expr                   -> aug_div
+          | aug_target "+=" expr             -> aug_add
+          | aug_target "-=" expr             -> aug_sub
+          | aug_target "*=" expr             -> aug_mul
+          | aug_target "/=" expr             -> aug_div
+          | aug_target "//=" expr            -> aug_floordiv
+          | aug_target "%=" expr             -> aug_mod
+          | aug_target "**=" expr            -> aug_pow
+
+// 複合代入の左辺: 変数 / obj.attr / obj[key]
+?aug_target: NAME                            -> aug_name
+           | postfix "." NAME                -> aug_attr
+           | postfix "[" expr "]"            -> aug_index
 
 // Multiple assignment: a, b = 1, 2
 multi_assign: NAME ("," NAME)+ "=" expr ("," expr)+
@@ -67,6 +79,12 @@ return_stmt: "return" expr?
 break_stmt: "break"
 continue_stmt: "continue"
 
+// Global / Nonlocal / Del / Pass
+global_stmt: "global" NAME ("," NAME)*
+nonlocal_stmt: "nonlocal" NAME ("," NAME)*
+del_stmt: "del" expr ("," expr)*
+pass_stmt: "pass"
+
 // Try / Catch / Finally
 try_stmt: "try" block catch_clause finally_clause?
         | "try" block finally_clause
@@ -97,7 +115,7 @@ struct_field: NAME "=" expr                      -> field_default
             | NAME                               -> field_plain
 
 // Block
-block: "{" (_NL* statement)* _NL* "}"
+block: "{" (_SEP* statement)* _SEP* "}"
 
 // Expressions
 ?expr: ternary_expr
@@ -125,6 +143,9 @@ block: "{" (_NL* statement)* _NL* "}"
         | add_expr "<=" add_expr             -> le
         | add_expr ">=" add_expr             -> ge
         | add_expr "in" add_expr             -> in_op
+        | add_expr "not" "in" add_expr       -> not_in_op
+        | add_expr "is" "not" add_expr       -> is_not_op
+        | add_expr "is" add_expr             -> is_op
 
 ?add_expr: mul_expr
          | add_expr "+" mul_expr             -> add
@@ -207,3 +228,6 @@ COMMENT: "//" /[^\n]/*
 %ignore /[ \t]+/
 
 _NL: /\n/+
+SEMICOLON: ";"
+// 文の区切り: 改行 または セミコロン (同一行に複数文を書ける)
+_SEP: _NL | SEMICOLON
