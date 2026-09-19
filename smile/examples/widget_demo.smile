@@ -1,0 +1,174 @@
+// Smile ウィジェット総合デモ - Button/Slider/TextInput/Checkbox + 音 + BMP保存
+import math
+
+win = window("Smile Widgets", 700, 520)
+win.show()
+
+// ウィジェット
+btn_beep = button(20, 60, 120, 36, "ビープ音")
+btn_save = button(150, 60, 120, 36, "BMP保存", color="#27ae60")
+btn_clear = button(280, 60, 120, 36, "クリア", color="#c0392b")
+
+sl_freq = slider(20, 130, 300, min_val=100, max_val=2000, value=440)
+sl_size = slider(20, 180, 300, min_val=5, max_val=80, value=30, color="#e67e22")
+sl_hue = slider(20, 230, 300, min_val=0, max_val=360, value=200, color="#8e44ad")
+
+inp_name = text_input(20, 290, 280, placeholder="名前を入力...")
+
+cb_grid = checkbox(20, 340, "グリッド表示", checked=true)
+cb_anim = checkbox(20, 370, "アニメーション", checked=true)
+cb_trail = checkbox(20, 400, "軌跡を残す", checked=false)
+
+widgets = [btn_beep, btn_save, btn_clear, sl_freq, sl_size, sl_hue, inp_name, cb_grid, cb_anim, cb_trail]
+
+frame = 0
+status = "ウィジェットを操作してみて"
+saved_count = 0
+
+// HSV→RGB
+function hsv_rgb(h, s, v) {
+    c = v * s
+    x = c * (1 - abs((h / 60) % 2 - 1))
+    m = v - c
+    r = 0
+    g = 0
+    b = 0
+    if h < 60 {
+        r = c
+        g = x
+    }
+    if h >= 60 and h < 120 {
+        r = x
+        g = c
+    }
+    if h >= 120 and h < 180 {
+        g = c
+        b = x
+    }
+    if h >= 180 and h < 240 {
+        g = x
+        b = c
+    }
+    if h >= 240 and h < 300 {
+        r = x
+        b = c
+    }
+    if h >= 300 {
+        r = c
+        b = x
+    }
+    return [to_int((r + m) * 255), to_int((g + m) * 255), to_int((b + m) * 255)]
+}
+
+while win.is_open() {
+    ev = win.poll()
+    while ev != none {
+        if ev.type == "keydown" and ev.key == "escape" {
+            win.close()
+        }
+        // 全ウィジェットにイベントを流す
+        for w in widgets {
+            w.handle(ev)
+        }
+        ev = win.poll()
+    }
+
+    btn_beep.update(win)
+    btn_save.update(win)
+    btn_clear.update(win)
+
+    // ボタン処理
+    if btn_beep.clicked() {
+        beep(to_int(sl_freq.value), 150)
+        status = f"ビープ再生: {to_int(sl_freq.value)}Hz"
+    }
+    if btn_save.clicked() {
+        saved_count = saved_count + 1
+        path = f"widget_demo_{saved_count}.bmp"
+        save_bmp(win.canvas, path)
+        status = f"保存しました: {path}"
+    }
+    if btn_clear.clicked() {
+        status = "クリアしました"
+        inp_name.text = ""
+        inp_name.cursor_pos = 0
+    }
+
+    if cb_grid.toggled() {
+        status = "グリッド: " + to_string(cb_grid.checked)
+    }
+    if cb_anim.toggled() {
+        status = "アニメ: " + to_string(cb_anim.checked)
+    }
+
+    // ─── 描画 ───
+    if not cb_trail.checked {
+        win.fill("#12121a")
+    }
+
+    // グリッド
+    if cb_grid.checked {
+        for gx in range(0, 700, 35) {
+            win.line(gx, 0, gx, 520, "#1e1e2e", 1)
+        }
+        for gy in range(0, 520, 35) {
+            win.line(0, gy, 700, gy, "#1e1e2e", 1)
+        }
+    }
+
+    // タイトル
+    win.rounded_rect(10, 8, 680, 40, 6, "#1a1a2e")
+    win.text(20, 16, "Smile ウィジェットデモ", color="white", size=20, bold=true)
+    win.text(450, 22, f"FPS: {win.fps():.0f}", color="gray", size=13)
+
+    // ウィジェット描画
+    for w in widgets {
+        w.draw(win)
+    }
+
+    // スライダーのラベル
+    win.text(330, 132, f"周波数: {to_int(sl_freq.value)} Hz", color="lightgray", size=13)
+    win.text(330, 182, f"サイズ: {to_int(sl_size.value)}", color="lightgray", size=13)
+    win.text(330, 232, f"色相: {to_int(sl_hue.value)}°", color="lightgray", size=13)
+
+    // プレビュー領域（右側）
+    px = 420
+    py = 290
+    pw = 260
+    ph = 200
+    win.rounded_rect(px, py, pw, ph, 6, "#0a0a12")
+    win.text(px + 8, py + 6, "プレビュー", color="gray", size=12)
+
+    // 色相スライダーの色で図形を描画
+    rgb = hsv_rgb(sl_hue.value, 0.8, 0.95)
+    cx = px + pw / 2
+    cy = py + ph / 2 + 10
+    sz = sl_size.value
+
+    if cb_anim.checked {
+        // 回転する円
+        for i in range(6) {
+            ang = (frame * 0.03) + (i * math.pi / 3)
+            ox = cx + math.cos(ang) * (sz + 20)
+            oy = cy + math.sin(ang) * (sz + 20)
+            win.circle(to_int(ox), to_int(oy), to_int(sz / 3), rgb)
+        }
+    }
+    win.circle(to_int(cx), to_int(cy), to_int(sz), rgb)
+
+    // 入力された名前を表示
+    if inp_name.text != "" {
+        win.text(px + 8, py + ph - 26, f"→ {inp_name.text}", color="white", size=14)
+    }
+
+    // ステータスバー
+    win.rounded_rect(10, 480, 400, 30, 4, "#1a1a2e")
+    win.text(20, 487, status, color="#00d2ff", size=13)
+
+    // ヘルプ
+    win.text(420, 500, "ESC: 終了", color="gray", size=11)
+
+    win.update()
+    win.wait(16)
+    frame += 1
+}
